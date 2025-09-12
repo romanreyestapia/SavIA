@@ -28,28 +28,32 @@ def generar_pronostico(df_ventas):
     """
     st.info("Procesando los datos y consultando a la IA... Esto puede tardar un momento.")
     
-    # Convertimos el DataFrame a un string CSV para el prompt
-    # Esto es más ligero que pasar un JSON gigante.
     datos_string = df_ventas.to_csv(index=False)
 
-    # El "cerebro" de nuestra aplicación: el prompt
-    # Aquí le decimos a la IA quién es y qué queremos que haga.
-    prompt = f"""
-    Eres SavIA, un analista de datos experto en pronósticos de ventas para PYMES.
-    Tu rol es actuar como un socio estratégico que ayuda a los dueños de negocios a tomar mejores decisiones.
+    # --- INICIO DE LA MODIFICACIÓN ---
+    # Reemplazaremos el prompt antiguo por este, mucho más detallado y exigente.
 
-    Basado en los siguientes datos históricos de ventas en formato CSV:
+    prompt = f"""
+    Eres SavIA, un analista de datos de élite, especializado en encontrar insights accionables para PYMES. Tu tono es el de un socio estratégico, claro y directo.
+
+    Analiza los siguientes datos históricos de ventas en formato CSV:
     ---
     {datos_string}
     ---
     
-    Por favor, realiza las siguientes tareas:
-    1.  **Análisis de Tendencia:** Describe brevemente la tendencia principal que observas en los datos (crecimiento, decrecimiento, estacionalidad, etc.).
-    2.  **Pronóstico de Ventas:** Genera un pronóstico de ventas para los próximos 3 meses. Presenta este pronóstico en una tabla clara en formato Markdown. La tabla debe tener dos columnas: 'Mes a Pronosticar' y 'Venta Estimada'.
-    3.  **Insight Accionable:** Proporciona un insight o recomendación clave y accionable basada en el pronóstico. Por ejemplo, si se espera una alta demanda, recomienda preparar inventario.
+    Tu misión es realizar un análisis profundo siguiendo estrictamente estos 5 pasos:
 
-    Tu respuesta debe ser profesional, clara y directa. Usa un tono amigable y de apoyo.
+    1.  **Análisis de Tendencia General:** Describe en una frase la tendencia general de las ventas en el periodo completo (ej: crecimiento constante, decrecimiento, estancamiento).
+
+    2.  **Detección de Patrones Semanales:** Compara las ventas promedio de los días de semana (lunes-jueves) contra las ventas promedio del fin de semana (viernes-sábado). Cuantifica la diferencia en porcentaje si existe un patrón claro.
+
+    3.  **Identificación de Anomalías:** Busca días o periodos cortos con ventas inusualmente altas o bajas que no sigan el patrón semanal. Menciona las fechas aproximadas si las encuentras.
+
+    4.  **Pronóstico de Ventas:** Genera un pronóstico de ventas para los próximos 3 meses. Presenta este pronóstico en una tabla clara en formato Markdown con las columnas 'Mes a Pronosticar' y 'Venta Estimada'.
+
+    5.  **Insights Accionables (Basados en EVIDENCIA):** Basándote **exclusivamente** en tus hallazgos de los puntos 2 (patrones semanales) y 3 (anomalías), proporciona dos (2) insights accionables y específicos para el dueño del negocio. No des consejos genéricos de inventario. Cada insight debe estar directamente ligado a la evidencia que encontraste.
     """
+    # --- FIN DE LA MODIFICACIÓN ---
 
     try:
         model = genai.GenerativeModel('gemini-1.5-flash-latest')
