@@ -52,7 +52,7 @@ def generar_pronostico(df_ventas):
     """
 
     try:
-        model = genai.GenerativeModel('gemini-1.0-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
