@@ -8,19 +8,15 @@ import io
 # --- CONFIGURACIÓN DE LA PÁGINA Y LA API ---
 
 # Título de la aplicación que se verá en el navegador
-st.set_page_config(page_title="SavIA - Pronóstico de Ventas", page_icon="Logo savIA.png")
+st.set_page_config(page_title="SavIA - Pronóstico de Ventas", page_icon="💡")
 
 # Consejo de socio: NUNCA escribas tu API Key directamente en el código.
 # Usaremos los "Secrets" de Streamlit.
 # Cuando despliegues la app, configurarás este valor en la plataforma.
-
-# Mostramos el logo en la barra lateral
-st.sidebar.image("Logo savIA.png", width=150)
-st.sidebar.title("SavIA")
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception:
-        st.error("Error al configurar la API de Google. Por favor, asegúrate de que la clave API esté configurada correctamente en los secretos de Streamlit.")
+    st.error("Error al configurar la API de Google. Por favor, asegúrate de que la clave API esté configurada correctamente en los secretos de Streamlit.")
     st.stop()
 
 
