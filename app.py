@@ -14,8 +14,8 @@ st.set_page_config(page_title="SavIA - Pronóstico de Ventas", page_icon="Logo s
 # Usaremos los "Secrets" de Streamlit.
 # Cuando despliegues la app, configurarás este valor en la plataforma.
 # Mostramos el logo en la barra lateral
-st.sidebar.image("Logo savIA.png", width=150)
-st.sidebar.title("SavIA")
+st.sidebar.image("Logo savIA.png", width=100)
+#st.sidebar.title("SavIA")
 
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
@@ -70,7 +70,22 @@ def generar_pronostico(df_ventas):
 
 # --- INTERFAZ DE USUARIO (LO QUE VE EL CLIENTE) ---
 
-st.title("💡 SavIA: Tu Socio de Análisis de Datos")
+# --- TÍTULO PRINCIPAL CON LOGO ---
+
+# Creamos dos columnas. El valor [1, 4] significa que la columna del título
+# será 4 veces más ancha que la del logo. Puedes jugar con estos números.
+col1, col2 = st.columns([1, 4])
+
+# Usamos un bloque "with" para decirle a Streamlit qué va en cada columna.
+with col1:
+    st.image("Logo savIA.png", width=100) # Ajusta el ancho a tu gusto
+
+with col2:
+    st.title("SavIA")
+    # Para el subtítulo, usamos st.markdown para darle un estilo diferente
+    st.markdown("#### Tu Socio de Análisis de Datos")
+
+
 st.header("MVP: Pronóstico de Ventas con IA")
 st.write("Sube tu archivo de ventas en formato CSV para obtener un pronóstico para los próximos 3 meses.")
 
