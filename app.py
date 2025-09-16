@@ -14,7 +14,7 @@ st.set_page_config(page_title="SavIA - Pronóstico de Ventas", page_icon="Logo s
 # Usaremos los "Secrets" de Streamlit.
 # Cuando despliegues la app, configurarás este valor en la plataforma.
 # Mostramos el logo en la barra lateral
-st.sidebar.image("Logo savIA.png", width=100)
+#st.sidebar.image("Logo savIA.png", width=100)
 #st.sidebar.title("SavIA")
 
 try:
