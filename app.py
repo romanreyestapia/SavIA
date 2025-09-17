@@ -173,7 +173,22 @@ archivo_cargado = st.file_uploader(
 if archivo_cargado is not None:
     try:
         # Usamos Pandas para leer el archivo CSV
-        df = pd.read_csv(archivo_cargado)
+       # Primero, intentamos leer el CSV asumiendo que el separador es un punto y coma (;)
+        # que es muy común en sistemas configurados en español.
+        # El encoding='utf-8-sig' ayuda a eliminar caracteres invisibles al inicio del archivo.
+        df = pd.read_csv(archivo_cargado, delimiter=';', encoding='utf-8-sig')
+
+        # Si después de leerlo, el resultado es una tabla con una sola columna,
+        # significa que el separador probablemente era una coma.
+        if df.shape[1] == 1:
+            # 'rebobinamos' el archivo para leerlo desde el principio de nuevo
+            archivo_cargado.seek(0)
+            df = pd.read_csv(archivo_cargado, delimiter=',', encoding='utf-8-sig')
+        
+        # Como medida de seguridad final, limpiamos los nombres de las columnas
+        # para que sean consistentes.
+        df.columns = df.columns.str.strip() # Quita espacios al inicio/final (ej: " Fecha " -> "Fecha")
+        df.columns = df.columns.str.title() # Convierte a formato Título (ej: "fecha" -> "Fecha")
 
         st.success("¡Archivo cargado exitosamente!")
         st.write("**Vista Previa de tus Datos:**")
