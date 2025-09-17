@@ -10,38 +10,45 @@ import json
 # --- CONFIGURACIÓN DE LA PÁGINA Y LA API ---
 
 # Título de la aplicación que se verá en el navegador
-st.set_page_config(page_title="SavIA - Pronóstico de Ventas", page_icon="Logo savIA.png")
+st.set_page_config(
+    page_title="SavIA - Pronóstico de Ventas", page_icon="Logo savIA.png"
+)
 
 # Consejo de socio: NUNCA escribas tu API Key directamente en el código.
 # Usaremos los "Secrets" de Streamlit.
 # Cuando despliegues la app, configurarás este valor en la plataforma.
 # Mostramos el logo en la barra lateral
-#st.sidebar.image("Logo savIA.png", width=100)
-#st.sidebar.title("SavIA")
+# st.sidebar.image("Logo savIA.png", width=100)
+# st.sidebar.title("SavIA")
 
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception:
-    st.error("Error al configurar la API de Google. Por favor, asegúrate de que la clave API esté configurada correctamente en los secretos de Streamlit.")
+    st.error(
+        "Error al configurar la API de Google. Por favor, asegúrate de que la clave API esté configurada correctamente en los secretos de Streamlit."
+    )
     st.stop()
 
 
 # --- FUNCIÓN PRINCIPAL DE PROCESAMIENTO ---
 
+
 def generar_pronostico(df_ventas):
-   """
+    """
     Toma un DataFrame de ventas, llama a la IA, procesa la respuesta
     y muestra tanto el gráfico como el análisis de texto.
     """
-    st.info("Procesando los datos y consultando a la IA... Esto puede tardar un momento.")
-    
-    # Asegurarnos de que la columna 'Fecha' sea del tipo datetime
-    df_ventas['Fecha'] = pd.to_datetime(df_ventas['Fecha'])
-    
-    datos_string = df_ventas.to_csv(index=False)
 
-    # --- INICIO DEL NUEVO PROMPT ---
-    prompt = f"""
+
+st.info("Procesando los datos y consultando a la IA... Esto puede tardar un momento.")
+
+# Asegurarnos de que la columna 'Fecha' sea del tipo datetime
+df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"])
+
+datos_string = df_ventas.to_csv(index=False)
+
+# --- INICIO DEL NUEVO PROMPT ---
+prompt = f"""
     Eres SavIA, un analista de datos de élite, especializado en encontrar insights accionables para PYMES. Tu tono es el de un socio estratégico, claro y directo.
 
     Analiza los siguientes datos históricos de ventas en formato CSV:
@@ -69,63 +76,73 @@ def generar_pronostico(df_ventas):
     }}
     ```
     """
-    # --- FIN DEL NUEVO PROMPT ---
+# --- FIN DEL NUEVO PROMPT ---
 
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-        response = model.generate_content(prompt)
-        
-        # --- NUEVO CÓDIGO PARA PROCESAR Y GRAFICAR ---
-        texto_respuesta = response.text
-        
-        # 1. Extraer el bloque JSON del texto
-        json_block_match = re.search(r'```json\n({.*?})\n```', texto_respuesta, re.DOTALL)
-        
-        if json_block_match:
-            json_string = json_block_match.group(1)
-            datos_pronostico = json.loads(json_string)
-            
-            # 2. Preparar los DataFrames para el gráfico
-            df_pronostico = pd.DataFrame(datos_pronostico['pronostico_json'])
-            df_pronostico['Fecha'] = pd.to_datetime(df_pronostico['Mes'])
-            df_pronostico = df_pronostico.rename(columns={'Venta': 'Pronóstico'})
+try:
+    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    response = model.generate_content(prompt)
 
-            # Agrupar ventas históricas por mes
-            df_historico_mensual = df_ventas.set_index('Fecha').resample('M').sum().reset_index()
-            df_historico_mensual = df_historico_mensual.rename(columns={'Ventas': 'Ventas Históricas'})
-            
-            # 3. Unir y mostrar el gráfico
-            st.subheader("📈 Gráfico de Ventas Históricas y Pronóstico")
-            
-            # Combinamos los datos para graficarlos juntos
-            df_completo = pd.merge(df_historico_mensual, df_pronostico, on='Fecha', how='outer')
-            df_completo = df_completo.set_index('Fecha')
+    # --- NUEVO CÓDIGO PARA PROCESAR Y GRAFICAR ---
+    texto_respuesta = response.text
 
-            st.line_chart(df_completo[['Ventas Históricas', 'Pronóstico']])
+    # 1. Extraer el bloque JSON del texto
+    json_block_match = re.search(r"```json\n({.*?})\n```", texto_respuesta, re.DOTALL)
 
-            # 4. Mostrar el resto del análisis de texto
-            st.subheader("📊 Análisis y Recomendaciones")
-            texto_analisis = texto_respuesta.split('```json')[0] # Tomamos todo el texto antes del JSON
-            st.markdown(texto_analisis)
-            
-        else:
-            # Si no encontramos el JSON, mostramos la respuesta completa como antes
-            st.subheader("📊 Análisis y Recomendaciones")
-            st.markdown(texto_respuesta)
+    if json_block_match:
+        json_string = json_block_match.group(1)
+        datos_pronostico = json.loads(json_string)
 
-    except Exception as e:
-        st.error(f"Ocurrió un error al contactar con el modelo de IA o procesar la respuesta: {e}")
-        return None
-    
-    # --- FIN DE LA MODIFICACIÓN ---
+        # 2. Preparar los DataFrames para el gráfico
+        df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
+        df_pronostico["Fecha"] = pd.to_datetime(df_pronostico["Mes"])
+        df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
 
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        st.error(f"Ocurrió un error al contactar con el modelo de IA: {e}")
-        return None
+        # Agrupar ventas históricas por mes
+        df_historico_mensual = (
+            df_ventas.set_index("Fecha").resample("M").sum().reset_index()
+        )
+        df_historico_mensual = df_historico_mensual.rename(
+            columns={"Ventas": "Ventas Históricas"}
+        )
+
+        # 3. Unir y mostrar el gráfico
+        st.subheader("📈 Gráfico de Ventas Históricas y Pronóstico")
+
+        # Combinamos los datos para graficarlos juntos
+        df_completo = pd.merge(
+            df_historico_mensual, df_pronostico, on="Fecha", how="outer"
+        )
+        df_completo = df_completo.set_index("Fecha")
+
+        st.line_chart(df_completo[["Ventas Históricas", "Pronóstico"]])
+
+        # 4. Mostrar el resto del análisis de texto
+        st.subheader("📊 Análisis y Recomendaciones")
+        texto_analisis = texto_respuesta.split("```json")[
+            0
+        ]  # Tomamos todo el texto antes del JSON
+        st.markdown(texto_analisis)
+
+    else:
+        # Si no encontramos el JSON, mostramos la respuesta completa como antes
+        st.subheader("📊 Análisis y Recomendaciones")
+        st.markdown(texto_respuesta)
+
+except Exception as e:
+    st.error(
+        f"Ocurrió un error al contactar con el modelo de IA o procesar la respuesta: {e}"
+    )
+    return None
+
+# --- FIN DE LA MODIFICACIÓN ---
+
+try:
+    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    response = model.generate_content(prompt)
+    return response.text
+except Exception as e:
+    st.error(f"Ocurrió un error al contactar con el modelo de IA: {e}")
+    return None
 
 
 # --- INTERFAZ DE USUARIO (LO QUE VE EL CLIENTE) ---
@@ -138,7 +155,7 @@ col1, col2 = st.columns([1, 4])
 
 # Usamos un bloque "with" para decirle a Streamlit qué va en cada columna.
 with col1:
-    st.image("Logo savIA.png", width=100) # Ajusta el ancho a tu gusto
+    st.image("Logo savIA.png", width=100)  # Ajusta el ancho a tu gusto
 
 with col2:
     st.title("SavIA")
@@ -147,33 +164,37 @@ with col2:
 
 
 st.header("MVP: Pronóstico de Ventas con IA")
-st.write("Sube tu archivo de ventas en formato CSV para obtener un pronóstico para los próximos 3 meses.")
+st.write(
+    "Sube tu archivo de ventas en formato CSV para obtener un pronóstico para los próximos 3 meses."
+)
 
 # Componente para subir el archivo
 archivo_cargado = st.file_uploader(
-    "Selecciona tu archivo CSV", 
-    type=['csv'],
-    help="El archivo debe tener dos columnas: 'Fecha' y 'Ventas'"
+    "Selecciona tu archivo CSV",
+    type=["csv"],
+    help="El archivo debe tener dos columnas: 'Fecha' y 'Ventas'",
 )
 
 if archivo_cargado is not None:
     try:
         # Usamos Pandas para leer el archivo CSV
         df = pd.read_csv(archivo_cargado)
-        
+
         st.success("¡Archivo cargado exitosamente!")
         st.write("**Vista Previa de tus Datos:**")
-        st.dataframe(df.head()) # Muestra las primeras 5 filas
+        st.dataframe(df.head())  # Muestra las primeras 5 filas
 
         # Botón para iniciar el análisis
         if st.button("✨ Generar Pronóstico"):
-            with st.spinner('SavIA está pensando...'):
+            with st.spinner("SavIA está pensando..."):
                 resultado_ia = generar_pronostico(df)
-            
+
             if resultado_ia:
                 st.subheader("📈 Aquí está tu Análisis y Pronóstico")
                 # Usamos st.markdown para que interprete el formato (negritas, tablas, etc.)
                 st.markdown(resultado_ia)
 
     except Exception as e:
-        st.error(f"Error al procesar el archivo: {e}. Asegúrate de que tenga las columnas 'Fecha' y 'Ventas'.")
+        st.error(
+            f"Error al procesar el archivo: {e}. Asegúrate de que tenga las columnas 'Fecha' y 'Ventas'."
+        )
