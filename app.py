@@ -40,109 +40,104 @@ def generar_pronostico(df_ventas):
     """
 
 
-st.info("Procesando los datos y consultando a la IA... Esto puede tardar un momento.")
+    st.info("Procesando los datos y consultando a la IA... Esto puede tardar un momento.")
 
-# Asegurarnos de que la columna 'Fecha' sea del tipo datetime
-df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"])
+    # Asegurarnos de que la columna 'Fecha' sea del tipo datetime
+    df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"])
 
-datos_string = df_ventas.to_csv(index=False)
+    datos_string = df_ventas.to_csv(index=False)
 
-# --- INICIO DEL NUEVO PROMPT ---
-prompt = f"""
-    Eres SavIA, un analista de datos de élite, especializado en encontrar insights accionables para PYMES. Tu tono es el de un socio estratégico, claro y directo.
+    # --- INICIO DEL NUEVO PROMPT ---
+    prompt = f"""
+        Eres SavIA, un analista de datos de élite, especializado en encontrar insights accionables para PYMES. Tu tono es el de un socio estratégico, claro y directo.
 
-    Analiza los siguientes datos históricos de ventas en formato CSV:
-    ---
-    {datos_string}
-    ---
-    
-    Tu misión es realizar un análisis profundo siguiendo estrictamente estos 5 pasos:
-    1.  **Análisis de Tendencia General:** Describe en una frase la tendencia general de las ventas en el periodo completo.
-    2.  **Detección de Patrones Semanales:** Compara las ventas promedio de los días de semana (lunes-jueves) contra las ventas promedio del fin de semana (viernes-sábado). Cuantifica la diferencia en porcentaje si existe un patrón claro.
-    3.  **Identificación de Anomalías:** Busca días o periodos cortos con ventas inusualmente altas o bajas que no sigan el patrón semanal. Menciona las fechas aproximadas si las encuentras.
-    4.  **Pronóstico de Ventas:** Genera un pronóstico de ventas para los próximos 3 meses. Presenta este pronóstico en una tabla clara en formato Markdown con las columnas 'Mes a Pronosticar' y 'Venta Estimada'.
-    5.  **Insights Accionables (Basados en EVIDENCIA):** Basándote exclusivamente en tus hallazgos de los puntos 2 y 3, proporciona dos (2) insights accionables y específicos.
+        Analiza los siguientes datos históricos de ventas en formato CSV:
+        ---
+        {datos_string}
+        ---
+        
+        Tu misión es realizar un análisis profundo siguiendo estrictamente estos 5 pasos:
+        1.  **Análisis de Tendencia General:** Describe en una frase la tendencia general de las ventas en el periodo completo.
+        2.  **Detección de Patrones Semanales:** Compara las ventas promedio de los días de semana (lunes-jueves) contra las ventas promedio del fin de semana (viernes-sábado). Cuantifica la diferencia en porcentaje si existe un patrón claro.
+        3.  **Identificación de Anomalías:** Busca días o periodos cortos con ventas inusualmente altas o bajas que no sigan el patrón semanal. Menciona las fechas aproximadas si las encuentras.
+        4.  **Pronóstico de Ventas:** Genera un pronóstico de ventas para los próximos 3 meses. Presenta este pronóstico en una tabla clara en formato Markdown con las columnas 'Mes a Pronosticar' y 'Venta Estimada'.
+        5.  **Insights Accionables (Basados en EVIDENCIA):** Basándote exclusivamente en tus hallazgos de los puntos 2 y 3, proporciona dos (2) insights accionables y específicos.
 
-    ---
-    **Formato de Salida Obligatorio:**
-    Después de todo tu análisis de texto, y sin añadir ninguna palabra introductoria extra, añade un bloque de código JSON limpio con los datos del pronóstico. La estructura debe ser la siguiente:
-    ```json
-    {{
-      "pronostico_json": [
-        {{"Mes": "2025-12", "Venta": 15000.50}},
-        {{"Mes": "2026-01", "Venta": 16000.00}},
-        {{"Mes": "2026-02", "Venta": 17500.75}}
-      ]
-    }}
-    ```
-    """
-# --- FIN DEL NUEVO PROMPT ---
+        ---
+        **Formato de Salida Obligatorio:**
+        Después de todo tu análisis de texto, y sin añadir ninguna palabra introductoria extra, añade un bloque de código JSON limpio con los datos del pronóstico. La estructura debe ser la siguiente:
+        ```json
+        {{
+        "pronostico_json": [
+            {{"Mes": "2025-12", "Venta": 15000.50}},
+            {{"Mes": "2026-01", "Venta": 16000.00}},
+            {{"Mes": "2026-02", "Venta": 17500.75}}
+        ]
+        }}
+        ```
+        """
+    # --- FIN DEL NUEVO PROMPT ---
 
-try:
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
-    response = model.generate_content(prompt)
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash-latest")
+        response = model.generate_content(prompt)
 
-    # --- NUEVO CÓDIGO PARA PROCESAR Y GRAFICAR ---
-    texto_respuesta = response.text
+        # --- NUEVO CÓDIGO PARA PROCESAR Y GRAFICAR ---
+        texto_respuesta = response.text
 
-    # 1. Extraer el bloque JSON del texto
-    json_block_match = re.search(r"```json\n({.*?})\n```", texto_respuesta, re.DOTALL)
+        # 1. Extraer el bloque JSON del texto
+        json_block_match = re.search(
+            r"```json\n({.*?})\n```", texto_respuesta, re.DOTALL)
 
-    if json_block_match:
-        json_string = json_block_match.group(1)
-        datos_pronostico = json.loads(json_string)
+        if json_block_match:
+            json_string = json_block_match.group(1)
+            datos_pronostico = json.loads(json_string)
 
-        # 2. Preparar los DataFrames para el gráfico
-        df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
-        df_pronostico["Fecha"] = pd.to_datetime(df_pronostico["Mes"])
-        df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
+            # 2. Preparar los DataFrames para el gráfico
+            df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
+            df_pronostico["Fecha"] = pd.to_datetime(df_pronostico["Mes"])
+            df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
 
-        # Agrupar ventas históricas por mes
-        df_historico_mensual = (
-            df_ventas.set_index("Fecha").resample("M").sum().reset_index()
+            # Agrupar ventas históricas por mes
+            df_historico_mensual = (
+                df_ventas.set_index("Fecha").resample("M").sum().reset_index()
+            )
+            df_historico_mensual = df_historico_mensual.rename(
+                columns={"Ventas": "Ventas Históricas"}
+            )
+
+            # 3. Unir y mostrar el gráfico
+            st.subheader("📈 Gráfico de Ventas Históricas y Pronóstico")
+
+            # Combinamos los datos para graficarlos juntos
+            df_completo = pd.merge(
+                df_historico_mensual, df_pronostico, on="Fecha", how="outer"
+            )
+            df_completo = df_completo.set_index("Fecha")
+
+            st.line_chart(df_completo[["Ventas Históricas", "Pronóstico"]])
+
+            # 4. Mostrar el resto del análisis de texto
+            st.subheader("📊 Análisis y Recomendaciones")
+            texto_analisis = texto_respuesta.split("```json")[
+                0
+            ]  # Tomamos todo el texto antes del JSON
+            st.markdown(texto_analisis)
+
+        else:
+            # Si no encontramos el JSON, mostramos la respuesta completa como antes
+            st.subheader("📊 Análisis y Recomendaciones")
+            st.markdown(texto_respuesta)
+
+    except Exception as e:
+        st.error(
+            f"Ocurrió un error al contactar con el modelo de IA o procesar la respuesta: {e}"
         )
-        df_historico_mensual = df_historico_mensual.rename(
-            columns={"Ventas": "Ventas Históricas"}
-        )
-
-        # 3. Unir y mostrar el gráfico
-        st.subheader("📈 Gráfico de Ventas Históricas y Pronóstico")
-
-        # Combinamos los datos para graficarlos juntos
-        df_completo = pd.merge(
-            df_historico_mensual, df_pronostico, on="Fecha", how="outer"
-        )
-        df_completo = df_completo.set_index("Fecha")
-
-        st.line_chart(df_completo[["Ventas Históricas", "Pronóstico"]])
-
-        # 4. Mostrar el resto del análisis de texto
-        st.subheader("📊 Análisis y Recomendaciones")
-        texto_analisis = texto_respuesta.split("```json")[
-            0
-        ]  # Tomamos todo el texto antes del JSON
-        st.markdown(texto_analisis)
-
-    else:
-        # Si no encontramos el JSON, mostramos la respuesta completa como antes
-        st.subheader("📊 Análisis y Recomendaciones")
-        st.markdown(texto_respuesta)
-
-except Exception as e:
-    st.error(
-        f"Ocurrió un error al contactar con el modelo de IA o procesar la respuesta: {e}"
-    )
-    return None
+        return None
 
 # --- FIN DE LA MODIFICACIÓN ---
 
-try:
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
-    response = model.generate_content(prompt)
-    return response.text
-except Exception as e:
-    st.error(f"Ocurrió un error al contactar con el modelo de IA: {e}")
-    return None
+
 
 
 # --- INTERFAZ DE USUARIO (LO QUE VE EL CLIENTE) ---
