@@ -43,7 +43,7 @@ def generar_pronostico(df_ventas):
     st.info("Procesando los datos y consultando a la IA... Esto puede tardar un momento.")
 
     # Asegurarnos de que la columna 'Fecha' sea del tipo datetime
-    df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"])
+    df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"], dayfirst=True)
 
     datos_string = df_ventas.to_csv(index=False)
 
