@@ -116,12 +116,28 @@ def generar_pronostico(df_ventas):
             df_para_grafico = df_completo.melt(id_vars='Fecha', var_name='Leyenda', value_name='Monto')
 
 # 4. Crear el gráfico con Altair y títulos en español
-            chart = alt.Chart(df_para_grafico).mark_line().encode(
-                x=alt.X('Fecha:T', title='Mes'),
-                y=alt.Y('Monto:Q', title='Monto de Venta ($)'),
-                color=alt.Color('Leyenda:N', title='Métrica'),
-                tooltip=[alt.Tooltip('Fecha:T', title='Mes'), alt.Tooltip('Monto:Q', title='Monto', format='$,.2f'), alt.Tooltip('Leyenda:N', title='Métrica')]
-            ).interactive()
+            # Creamos una base para el gráfico
+            base = alt.Chart(df_para_grafico).encode(
+             x=alt.X('Fecha:T', title='Mes'),
+             y=alt.Y('Monto:Q', title='Monto de Venta ($)'),
+             color=alt.Color('Leyenda:N', title='Métrica', scale=alt.Scale(domain=['Ventas Históricas', 'Pronóstico'], range=['#1f77b4', '#ff7f0e'])),
+             tooltip=[alt.Tooltip('Fecha:T', title='Mes'), alt.Tooltip('Monto:Q', title='Monto', format='$,.2f'), alt.Tooltip('Leyenda:N', title='Métrica')]
+                )
+
+# Creamos la línea de ventas históricas (sólida y con puntos)
+            linea_historica = base.transform_filter(
+            alt.datum.Leyenda == 'Ventas Históricas'
+            ).mark_line(point=True)
+
+# Creamos la línea de pronóstico (punteada y con puntos)
+            linea_pronostico = base.transform_filter(
+            alt.datum.Leyenda == 'Pronóstico'
+            ).mark_line(point=True, strokeDash=[5,5]) # strokeDash crea la línea punteada
+
+# Unimos las dos capas en un solo gráfico
+            chart = (linea_historica + linea_pronostico).interactive()
+
+# --- FIN DEL CÓDIGO DEL GRÁFICO MEJORADO ---
 
 # 5. Mostrar el gráfico en Streamlit
             st.altair_chart(chart, use_container_width=True)
