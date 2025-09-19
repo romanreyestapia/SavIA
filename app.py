@@ -6,6 +6,7 @@ import google.generativeai as genai
 import io
 import re
 import json
+import altair as alt
 
 # --- CONFIGURACIÓN DE LA PÁGINA Y LA API ---
 
@@ -106,23 +107,24 @@ def generar_pronostico(df_ventas):
                 columns={"Ventas": "Ventas Históricas"}
             )
 
-            # 3. Unir y mostrar el gráfico
+            # 3. Unir y preparar los datos para el gráfico en español
             st.subheader("📈 Gráfico de Ventas Históricas y Pronóstico")
 
-            # Combinamos los datos para graficarlos juntos
-            df_completo = pd.merge(
-                df_historico_mensual, df_pronostico, on="Fecha", how="outer"
-            )
-            df_completo = df_completo.set_index("Fecha")
+            df_completo = pd.merge(df_historico_mensual, df_pronostico, on='Fecha', how='outer')
 
-            st.line_chart(df_completo[["Ventas Históricas", "Pronóstico"]])
+# Reorganizamos la tabla para que Altair la entienda mejor
+            df_para_grafico = df_completo.melt(id_vars='Fecha', var_name='Leyenda', value_name='Monto')
 
-            # 4. Mostrar el resto del análisis de texto
-            st.subheader("📊 Análisis y Recomendaciones")
-            texto_analisis = texto_respuesta.split("```json")[
-                0
-            ]  # Tomamos todo el texto antes del JSON
-            st.markdown(texto_analisis)
+# 4. Crear el gráfico con Altair y títulos en español
+            chart = alt.Chart(df_para_grafico).mark_line().encode(
+                x=alt.X('Fecha:T', title='Mes'),
+                y=alt.Y('Monto:Q', title='Monto de Venta ($)'),
+                color=alt.Color('Leyenda:N', title='Métrica'),
+                tooltip=[alt.Tooltip('Fecha:T', title='Mes'), alt.Tooltip('Monto:Q', title='Monto', format='$,.2f'), alt.Tooltip('Leyenda:N', title='Métrica')]
+            ).interactive()
+
+# 5. Mostrar el gráfico en Streamlit
+            st.altair_chart(chart, use_container_width=True)
 
         else:
             # Si no encontramos el JSON, mostramos la respuesta completa como antes
