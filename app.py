@@ -125,6 +125,15 @@ def generar_pronostico(df_ventas):
 
 # 5. Mostrar el gráfico en Streamlit
             st.altair_chart(chart, use_container_width=True)
+# --- INICIO DEL CÓDIGO AÑADIDO ---
+# Después de mostrar el gráfico, extraemos y mostramos el análisis de texto.
+            st.subheader("📊 Análisis y Recomendaciones")
+
+# Dividimos la respuesta de la IA en el punto donde empieza el JSON
+# y nos quedamos con la primera parte (el texto).
+            texto_analisis = texto_respuesta.split("```json")[0]
+            st.markdown(texto_analisis)
+# --- FIN DEL CÓDIGO AÑADIDO ---                
 
         else:
             # Si no encontramos el JSON, mostramos la respuesta completa como antes
