@@ -22,12 +22,14 @@ st.set_page_config(
 # st.sidebar.image("Logo savIA.png", width=100)
 # st.sidebar.title("SavIA")
 
-try:q
+try:
+    
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception:
     st.error(
         "Error al configurar la API de Google. Por favor, asegúrate de que la clave API esté configurada correctamente en los secretos de Streamlit."
     )
+
     st.stop()
 
 
