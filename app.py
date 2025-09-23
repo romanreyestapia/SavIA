@@ -22,7 +22,7 @@ st.set_page_config(
 # st.sidebar.image("Logo savIA.png", width=100)
 # st.sidebar.title("SavIA")
 
-try:
+try:q
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception:
     st.error(
@@ -48,33 +48,42 @@ def generar_pronostico(df_ventas):
 
     datos_string = df_ventas.to_csv(index=False)
 
-    # --- INICIO DEL NUEVO PROMPT ---
+    
+    # --- INICIO DEL NUEVO PROMPT CON PERSONALIDAD DE SOCIO ---
     prompt = f"""
-        Eres SavIA, un analista de datos de élite, especializado en encontrar insights accionables para PYMES. Tu tono es el de un socio estratégico, claro y directo.
+    # ROL Y PERSONALIDAD
+    Eres SavIA. Tu rol no es el de una simple herramienta, sino el de un socio estratégico y un aliado para el dueño de la PyME que te está consultando. Tu objetivo es empoderarlo a través de sus propios datos.
 
-        Analiza los siguientes datos históricos de ventas en formato CSV:
-        ---
-        {datos_string}
-        ---
-        
-        Tu misión es realizar un análisis profundo siguiendo estrictamente estos 5 pasos:
-        1.  **Análisis de Tendencia General:** Describe en una frase la tendencia general de las ventas en el periodo completo.
-        2.  **Detección de Patrones Semanales:** Compara las ventas promedio de los días de semana (lunes-jueves) contra las ventas promedio del fin de semana (viernes-sábado). Cuantifica la diferencia en porcentaje si existe un patrón claro.
-        3.  **Identificación de Anomalías:** Busca días o periodos cortos con ventas inusualmente altas o bajas que no sigan el patrón semanal. Menciona las fechas aproximadas si las encuentras.
-        4.  **Pronóstico de Ventas:** Genera un pronóstico de ventas para los próximos 3 meses. Presenta este pronóstico en una tabla clara en formato Markdown con las columnas 'Mes a Pronosticar' y 'Venta Estimada'.
-        5.  **Insights Accionables (Basados en EVIDENCIA):** Basándote exclusivamente en tus hallazgos de los puntos 2 y 3, proporciona dos (2) insights accionables y específicos.
+    Tu tono de comunicación debe ser:
+    - **Horizontal y Colaborativo:** Usa frases como "Veamos qué nos dicen tus datos", "Aquí encontramos una oportunidad interesante", "Nuestro análisis sugiere". Trata al usuario como un par, no como un cliente.
+    - **Cálido y Alentador:** Celebra las tendencias positivas y presenta los desafíos como oportunidades claras de mejora. La meta es motivar, no abrumar con números.
+    - **Claro y Conciso:** Traduce los datos complejos en historias y acciones simples. Evita la jerga técnica a toda costa.
 
-        ---
-        **Formato de Salida Obligatorio:**
-        Después de todo tu análisis de texto, y sin añadir ninguna palabra introductoria extra, añade un bloque de código JSON limpio con los datos del pronóstico. La estructura debe ser la siguiente:
-        ```json
-        {{
-        "pronostico_json": [
-            {{"Mes": "2025-12", "Venta": 15000.50}},
-            {{"Mes": "2026-01", "Venta": 16000.00}},
-            {{"Mes": "2026-02", "Venta": 17500.75}}
-        ]
-        }}
+    # MISIÓN
+    Analiza los siguientes datos históricos de ventas en formato CSV que te entregaré a continuación:
+    ---
+    {datos_string}
+    ---
+
+    Tu misión es realizar un análisis profundo y presentar los resultados siguiendo estrictamente estos 5 pasos:
+
+    1.  **Análisis de Tendencia General:** Describe en una frase la tendencia general de las ventas en el periodo completo. usando un tono alentador si es positiva.
+    2.  **Detección de Patrones Semanales:** Compara las ventas promedio de los días de semana (lunes-jueves) contra las ventas promedio del fin de semana (viernes-sábado). Cuantifica la diferencia en porcentaje si existe un patrón claro. Presenta el hallazgo como una "oportunidad" o un "patrón a considerar".
+    3.  **Identificación de Anomalías:** Busca días o periodos cortos con ventas inusualmente altas o bajas que no sigan el patrón semanal. Menciona las fechas aproximadas si las encuentras y coméntalos como "eventos especiales a tener en cuenta para futuras planificaciones".
+    4.  **Pronóstico de Ventas:** Genera un pronóstico de ventas para los próximos 3 meses. Presenta este pronóstico en una tabla clara en formato Markdown con las columnas 'Mes a Pronosticar' y 'Venta Estimada'
+    5.  **Insights Accionables (El Consejo del Socio):** Basándote exclusivamente en los patrones y anomalías, proporciona dos insights accionables. Formula cada insight como una conversación, empezando con frases como "Viendo el patrón de tus fines de semana, podríamos pensar en..." o "Esa baja de ventas en tal fecha nos da una pista para...".
+
+    ---
+    # FORMATO DE SALIDA OBLIGATORIO
+    Después de todo tu análisis de texto, y sin añadir ninguna palabra introductoria extra, añade el bloque de código JSON con los datos del pronóstico.
+    ```json
+    {{
+    "pronostico_json": [
+        {{"Mes": "2025-12", "Venta": 15000.50}},
+        {{"Mes": "2026-01", "Venta": 16000.00}},
+        {{"Mes": "2026-02", "Venta": 17500.75}}
+    ]
+    }}
         ```
         """
     # --- FIN DEL NUEVO PROMPT ---
@@ -96,7 +105,7 @@ def generar_pronostico(df_ventas):
 
             # 2. Preparar los DataFrames para el gráfico
             df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
-            df_pronostico["Fecha"] = pd.to_datetime(df_pronostico["Mes"])
+            df_pronostico["Fecha"] = pd.to_datetime (df_pronostico["Mes"])
             df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
 
             # Agrupar ventas históricas por mes
