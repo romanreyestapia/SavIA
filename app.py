@@ -73,8 +73,7 @@ def generar_pronostico(df_ventas):
     2.  **Detección de Patrones Semanales:** Compara las ventas promedio de los días de semana (lunes-jueves) contra las ventas promedio del fin de semana (viernes-sábado). Cuantifica la diferencia en porcentaje si existe un patrón claro. Presenta el hallazgo como una "oportunidad" o un "patrón a considerar".
     3.  **Identificación de Anomalías:** Busca días o periodos cortos con ventas inusualmente altas o bajas que no sigan el patrón semanal. Menciona las fechas aproximadas si las encuentras y coméntalos como "eventos especiales a tener en cuenta para futuras planificaciones".
     4.  **Pronóstico de Ventas:** Genera un pronóstico de ventas para los próximos 3 meses. Presenta este pronóstico en una tabla clara en formato Markdown con las columnas 'Mes a Pronosticar' y 'Venta Estimada'
-    5.  **Insights Accionables (El Consejo del Socio):** Basándote exclusivamente en los patrones y anomalías, proporciona dos insights accionables. Formula cada insight como una conversación, empezando con frases como "Viendo el patrón de tus fines de semana, podríamos pensar en..." o "Esa baja de ventas en tal fecha nos da una pista para...".
-
+    5.  **Insights Accionables (El Consejo del Socio):** Encabeza esta sección final con el título exacto en formato Markdown: '### 💡 ¡Hemos Encontrado Oportunidades para Ti!'. Basándote exclusivamente en los patrones y anomalías, proporciona dos insights accionables. Formula cada insight como una conversación...
     ---
     # FORMATO DE SALIDA OBLIGATORIO
     Después de todo tu análisis de texto, y sin añadir ninguna palabra introductoria extra, añade el bloque de código JSON con los datos del pronóstico.
@@ -152,26 +151,42 @@ def generar_pronostico(df_ventas):
 
 # 5. Mostrar el gráfico en Streamlit
             st.altair_chart(chart, use_container_width=True)
-# --- INICIO DEL CÓDIGO AÑADIDO ---
-# Después de mostrar el gráfico, extraemos y mostramos el análisis de texto.
-            st.subheader("📊 Análisis y Recomendaciones")
+# Código Nuevo (el reemplazo)
 
-# Dividimos la respuesta de la IA en el punto donde empieza el JSON
-# y nos quedamos con la primera parte (el texto).
+# Dividimos la respuesta de la IA para obtener solo el análisis de texto
             texto_analisis = texto_respuesta.split("```json")[0]
-            st.markdown(texto_analisis)
-# --- FIN DEL CÓDIGO AÑADIDO ---                
+
+# La señal que buscará nuestro código
+            separador_insights = "### 💡 ¡Hemos Encontrado Oportunidades para Ti!"
+
+# Verificamos si la señal de insights está en la respuesta
+            if separador_insights in texto_analisis:
+    # Dividimos el análisis en dos partes: antes y después de la señal
+                parte_general, parte_insights = texto_analisis.split(separador_insights, 1)
+
+    # Mostramos la parte del análisis general
+            st.subheader("📊 Análisis General de tus Ventas")
+            st.markdown(parte_general)
+
+    # Mostramos la sección de insights de forma destacada
+            st.subheader("💡 ¡Hemos Encontrado Oportunidades para Ti!")
+            st.markdown(parte_insights)
 
         else:
+    # Si por alguna razón la IA no usó el separador, mostramos todo como antes
+             st.subheader("📊 Análisis y Recomendaciones")
+             st.markdown(texto_analisis)              
+
+   # else:
             # Si no encontramos el JSON, mostramos la respuesta completa como antes
-            st.subheader("📊 Análisis y Recomendaciones")
-            st.markdown(texto_respuesta)
+      #      st.subheader("📊 Análisis y Recomendaciones")
+         #   st.markdown(texto_respuesta)
 
     except Exception as e:
-        st.error(
+                 st.error(
             f"Ocurrió un error al contactar con el modelo de IA o procesar la respuesta: {e}"
         )
-        return None
+    return None
 
 # --- FIN DE LA MODIFICACIÓN ---
 
