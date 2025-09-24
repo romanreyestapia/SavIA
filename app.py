@@ -36,70 +36,64 @@ except Exception:
 # --- FUNCIÓN PRINCIPAL DE PROCESAMIENTO ---
 
 
-def generar_pronostico(df_ventas):
+# Reemplaza tu función generar_pronostico completa por esta:
+def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     """
-    Toma un DataFrame de ventas, llama a la IA, procesa la respuesta
+    Toma un DataFrame de ventas y el nombre del usuario, llama a la IA, procesa la respuesta
     y muestra tanto el gráfico como el análisis de texto.
     """
-
-
-    st.info("Procesando los datos y consultando a la IA... Esto puede tardar un momento.")
-
-    # Asegurarnos de que la columna 'Fecha' sea del tipo datetime
+    # --- DICCIONARIOS DE LOCALIZACIÓN PARA EL GRÁFICO ---
+    es_locale = {
+        "dateTime": "%A, %e de %B de %Y, %H:%M:%S", "date": "%d/%m/%Y", "time": "%H:%M:%S",
+        "periods": ["AM", "PM"], "days": ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
+        "shortDays": ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"],
+        "months": ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"],
+        "shortMonths": ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    }
+    es_number_locale = {
+        "decimal": ",", "thousands": ".", "grouping": [3], "currency": ["$", ""]
+    }
+    alt.renderers.set_embed_options(timeFormatLocale=es_locale, numberFormatLocale=es_number_locale)
+    
+    st.info(f"Preparando el análisis para {nombre_usuario}... Esto puede tardar un momento.")
+    
     df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"], dayfirst=True)
-
     datos_string = df_ventas.to_csv(index=False)
 
-    
-    # --- INICIO DEL NUEVO PROMPT CON PERSONALIDAD DE SOCIO ---
+    # --- PROMPT FINAL CON PERSONALIZACIÓN Y FORMATO DE NÚMEROS ---
     prompt = f"""
     # ROL Y PERSONALIDAD
-    Eres SavIA. Tu rol no es el de una simple herramienta, sino el de un socio estratégico y un aliado para el dueño de la PyME que te está consultando. Tu objetivo es empoderarlo a través de sus propios datos.
-
-    Tu tono de comunicación debe ser:
-    - **Horizontal y Colaborativo:** Usa frases como "Veamos qué nos dicen tus datos", "Aquí encontramos una oportunidad interesante", "Nuestro análisis sugiere". Trata al usuario como un par, no como un cliente.
-    - **Cálido y Alentador:** Celebra las tendencias positivas y presenta los desafíos como oportunidades claras de mejora. La meta es motivar, no abrumar con números.
-    - **Claro y Conciso:** Traduce los datos complejos en historias y acciones simples. Evita la jerga técnica a toda costa.
+    Eres SavIA, un socio estratégico y un aliado para el dueño de la PyME. Tu objetivo es empoderarlo.
+    Tu tono debe ser colaborativo, cálido y alentador. Dirígete al usuario por su nombre: '{nombre_usuario}'.
 
     # MISIÓN
-Analiza los siguientes datos históricos de ventas en formato CSV que te entregaré a continuación:
----
-{datos_string}
----
+    Analiza los siguientes datos de ventas para {nombre_usuario}. Sigue estrictamente estos pasos:
 
-# MISIÓN
-Analiza los siguientes datos históricos de ventas en formato CSV que te entregaré a continuación:
----
-{datos_string}
----
+    **Paso 0 - Entendimiento de Escala:** Suma las ventas diarias para obtener el total de cada mes histórico. Usa estos totales como base para tu pronóstico mensual.
 
-Tu misión es realizar un análisis profundo. Para asegurar la precisión, sigue estrictamente estos pasos en orden:
+    **Paso 1 - Análisis de Tendencia General:** Usando los totales mensuales, describe la tendencia general.
 
-**Paso 0 - Entendimiento de Escala:** Antes de cualquier análisis, primero suma las ventas diarias para obtener el **total de ventas de cada mes histórico**. Usa estos totales mensuales como la base principal para tu pronóstico. El pronóstico que generes debe ser también un **total mensual estimado**.
+    **Paso 2 - Detección de Patrones Semanales:** Compara ventas de semana vs. fin de semana.
 
-**Paso 1 - Análisis de Tendencia General:** Usando los totales mensuales que calculaste, describe la tendencia general.
+    **Paso 3 - Identificación de Anomalías:** Busca días con ventas inusuales.
 
-**Paso 2 - Detección de Patrones Semanales:** (Este análisis sí puedes hacerlo con los datos diarios) Compara las ventas entre la semana y el fin de semana.
+    **Paso 4 - Pronóstico de Ventas:** Genera la tabla de pronóstico. IMPORTANTE: Todos los montos deben ser números enteros y usar un punto (.) como separador de miles (ej: 75.400).
 
-**Paso 3 - Identificación de Anomalías:** (Este análisis también puedes hacerlo con los datos diarios) Busca días con ventas inusuales.
+    **Paso 5 - Insights Accionables:** Encabeza esta sección con '### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!'.
 
-**Paso 4 - Pronóstico de Ventas:** Genera la tabla de pronóstico. **Importante: Todos los montos de venta deben ser números enteros, sin decimales.**
-
-**Paso 5 - Insights Accionables (El Consejo del Socio):** Encabeza esta sección con el título '### 💡 ¡Hemos Encontrado Oportunidades para Ti!' y proporciona tus dos insights.
-
----
-# FORMATO DE SALIDA OBLIGATORIO
-Después de todo tu análisis de texto, añade el bloque JSON. **Importante: Los valores de "Venta" en el JSON también deben ser números enteros, sin decimales.**
-```json
+    ---
+    # FORMATO DE SALIDA OBLIGATORIO
+    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y sin separador de miles en el JSON (ej: 75400).
+    ```json
     {{
-    "pronostico_json": [
-        {{"Mes": "2025-12", "Venta": 15000.50}},
-        {{"Mes": "2026-01", "Venta": 16000.00}},
-        {{"Mes": "2026-02", "Venta": 17500.75}}
-    ]
+      "pronostico_json": [
+        {{"Mes": "2025-12", "Venta": 15000}},
+        {{"Mes": "2026-01", "Venta": 16000}},
+        {{"Mes": "2026-02", "Venta": 17500}}
+      ]
     }}
-        ```
-        """
+    ```
+    """
     # --- FIN DEL NUEVO PROMPT ---
 
     try:
@@ -145,7 +139,7 @@ Después de todo tu análisis de texto, añade el bloque JSON. **Importante: Los
                 x=alt.X('Fecha:T', title='Mes', axis=alt.Axis(format='%b %Y')),
                 y=alt.Y('Monto:Q', title='Monto de Venta ($)'),
                 color=alt.Color('Leyenda:N', title='Métrica', scale=alt.Scale(domain=['Ventas Históricas', 'Pronóstico'], range=['#1f77b4', '#ff7f0e'])),
-                tooltip=[alt.Tooltip('Fecha:T', title='Mes', format='%B de %Y'), alt.Tooltip('Monto:Q', title='Monto', format='$,.2f'), alt.Tooltip('Leyenda:N', title='Métrica')]
+                tooltip=[alt.Tooltip('Fecha:T', title='Mes', format='%B de %Y'), alt.Tooltip('Monto:Q', title='Monto', format='$,.0f'), alt.Tooltip('Leyenda:N', title='Métrica')]
             )
 
             linea_historica = base.transform_filter(alt.datum.Leyenda == 'Ventas Históricas').mark_line(point=True)
@@ -224,6 +218,8 @@ with col2:
     # Para el subtítulo, usamos st.markdown para darle un estilo diferente
     st.markdown("#### Tu Socio de Análisis de Datos")
 
+# --- NUEVO CAMPO PARA EL NOMBRE ---
+nombre_usuario = st.text_input("Escribe tu nombre o el de tu negocio:", "Emprendedor")
 
 st.header("MVP: Pronóstico de Ventas con IA")
 st.write(
@@ -263,8 +259,8 @@ if archivo_cargado is not None:
 
         # Botón para iniciar el análisis
         if st.button("✨ Generar Pronóstico"):
-            with st.spinner("SavIA está pensando..."):
-                resultado_ia = generar_pronostico(df)
+            with st.spinner("SavIA está pensando,{nombre_usuario}..."):
+                resultado_ia = generar_pronostico(df, nombre_usuario)
 
             if resultado_ia:
                 st.subheader("📈 Aquí está tu Análisis y Pronóstico")
