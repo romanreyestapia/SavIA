@@ -110,6 +110,10 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
         if json_block_match:
             json_string = json_block_match.group(1)
             datos_pronostico = json.loads(json_string)
+            
+           # INICIO DE LA CORRECCIÓN ---
+        # Definimos 'texto_analisis' PRIMERO.
+            texto_analisis = texto_respuesta.split("```json")[0]
 
             # 2. Preparar los DataFrames para el gráfico
             df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
