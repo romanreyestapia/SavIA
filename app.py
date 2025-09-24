@@ -62,19 +62,27 @@ def generar_pronostico(df_ventas):
     - **Claro y Conciso:** Traduce los datos complejos en historias y acciones simples. Evita la jerga técnica a toda costa.
 
     # MISIÓN
-    Analiza los siguientes datos históricos de ventas en formato CSV que te entregaré a continuación:
-    ---
-    {datos_string}
-    ---
+Analiza los siguientes datos históricos de ventas en formato CSV que te entregaré a continuación:
+---
+{datos_string}
+---
 
-    Tu misión es realizar un análisis profundo y presentar los resultados siguiendo estrictamente estos 5 pasos:
+Tu misión es realizar un análisis profundo y presentar los resultados usando **exactamente** los siguientes títulos en formato Markdown para cada paso. Sé detallado en cada punto:
 
-    1.  **Análisis de Tendencia General:** Describe en una frase la tendencia general de las ventas en el periodo completo. usando un tono alentador si es positiva.
-    2.  **Detección de Patrones Semanales:** Compara las ventas promedio de los días de semana (lunes-jueves) contra las ventas promedio del fin de semana (viernes-sábado). Cuantifica la diferencia en porcentaje si existe un patrón claro. Presenta el hallazgo como una "oportunidad" o un "patrón a considerar".
-    3.  **Identificación de Anomalías:** Busca días o periodos cortos con ventas inusualmente altas o bajas que no sigan el patrón semanal. Menciona las fechas aproximadas si las encuentras y coméntalos como "eventos especiales a tener en cuenta para futuras planificaciones".
-    4.  **Pronóstico de Ventas:** Genera un pronóstico de ventas para los próximos 3 meses. Presenta este pronóstico en una tabla clara en formato Markdown con las columnas 'Mes a Pronosticar' y 'Venta Estimada'
-    5.  **Insights Accionables (El Consejo del Socio):** Encabeza esta sección final con el título exacto en formato Markdown: '### 💡 ¡Hemos Encontrado Oportunidades para Ti!'. Basándote exclusivamente en los patrones y anomalías, proporciona dos insights accionables. Formula cada insight como una conversación...
-    ---
+**1. Análisis de Tendencia General:**
+(Aquí va tu análisis sobre la tendencia general...)
+
+**2. Detección de Patrones Semanales:**
+(Aquí va tu análisis sobre los patrones de días de semana vs. fines de semana...)
+
+**3. Identificación de Anomalías:**
+(Aquí va tu análisis sobre los días o eventos especiales con ventas inusuales...)
+
+**4. Pronóstico de Ventas:**
+(Aquí va la tabla Markdown con el pronóstico...)
+
+**5. Insights Accionables (El Consejo del Socio):**
+(Esta sección debe ir encabezada por el título '### 💡 ¡Hemos Encontrado Oportunidades para Ti!' y contener tus dos insights accionables...)
     # FORMATO DE SALIDA OBLIGATORIO
     Después de todo tu análisis de texto, y sin añadir ninguna palabra introductoria extra, añade el bloque de código JSON con los datos del pronóstico.
     ```json
@@ -126,30 +134,31 @@ def generar_pronostico(df_ventas):
             df_para_grafico = df_completo.melt(id_vars='Fecha', var_name='Leyenda', value_name='Monto')
 
 # 4. Crear el gráfico con Altair y títulos en español
-            # Creamos una base para el gráfico
+             # ... (código anterior que prepara df_para_grafico)
+
             base = alt.Chart(df_para_grafico).encode(
-             x=alt.X('Fecha:T', title='Mes'),
-             y=alt.Y('Monto:Q', title='Monto de Venta ($)'),
-             color=alt.Color('Leyenda:N', title='Métrica', scale=alt.Scale(domain=['Ventas Históricas', 'Pronóstico'], range=['#1f77b4', '#ff7f0e'])),
-             tooltip=[alt.Tooltip('Fecha:T', title='Mes'), alt.Tooltip('Monto:Q', title='Monto', format='$,.2f'), alt.Tooltip('Leyenda:N', title='Métrica')]
-                )
+                x=alt.X('Fecha:T', title='Mes', axis=alt.Axis(format='%b %Y')),
+                y=alt.Y('Monto:Q', title='Monto de Venta ($)'),
+                color=alt.Color('Leyenda:N', title='Métrica', scale=alt.Scale(domain=['Ventas Históricas', 'Pronóstico'], range=['#1f77b4', '#ff7f0e'])),
+                tooltip=[alt.Tooltip('Fecha:T', title='Mes', format='%B de %Y'), alt.Tooltip('Monto:Q', title='Monto', format='$,.2f'), alt.Tooltip('Leyenda:N', title='Métrica')]
+            )
 
-# Creamos la línea de ventas históricas (sólida y con puntos)
-            linea_historica = base.transform_filter(
-            alt.datum.Leyenda == 'Ventas Históricas'
-            ).mark_line(point=True)
+            linea_historica = base.transform_filter(alt.datum.Leyenda == 'Ventas Históricas').mark_line(point=True)
+            linea_pronostico = base.transform_filter(alt.datum.Leyenda == 'Pronóstico').mark_line(point=True, strokeDash=[5,5])
+            
+            # --- INICIO DE LA MODIFICACIÓN ---
+            # Obtenemos la última fecha con datos históricos para dibujar la línea
+            ultima_fecha_historica = df_historico_mensual['Fecha'].max()
 
-# Creamos la línea de pronóstico (punteada y con puntos)
-            linea_pronostico = base.transform_filter(
-            alt.datum.Leyenda == 'Pronóstico'
-            ).mark_line(point=True, strokeDash=[5,5]) # strokeDash crea la línea punteada
+            # Creamos la línea vertical (regla) en esa fecha
+            linea_vertical = alt.Chart(pd.DataFrame({'fecha': [ultima_fecha_historica]})).mark_rule(color='gray', strokeWidth=1.5, strokeDash=[3,3]).encode(
+                x='fecha:T'
+            )
+            # --- FIN DE LA MODIFICACIÓN ---
 
-# Unimos las dos capas en un solo gráfico
-            chart = (linea_historica + linea_pronostico).interactive()
-
-# --- FIN DEL CÓDIGO DEL GRÁFICO MEJORADO ---
-
-# 5. Mostrar el gráfico en Streamlit
+            # Unimos las dos líneas Y la nueva regla vertical en un solo gráfico
+            chart = (linea_historica + linea_pronostico + linea_vertical).interactive()
+            
             st.altair_chart(chart, use_container_width=True)
 # Código Nuevo (el reemplazo)
 
