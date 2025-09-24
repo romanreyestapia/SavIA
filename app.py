@@ -113,7 +113,36 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
             
            # INICIO DE LA CORRECCIÓN ---
         # Definimos 'texto_analisis' PRIMERO.
-            texto_analisis = texto_respuesta.split("```json")[0]
+           #  Dividimos la respuesta de la IA para obtener solo el análisis de texto y quitamos espacios extra
+            texto_analisis = texto_respuesta.split("```json")[0].strip()
+
+# La señal que usaremos para dividir
+            separador_insights = "### 💡 ¡Hemos Encontrado Oportunidades para Ti!"
+
+# Intentamos dividir el texto usando el separador. Esto creará una lista de "partes".
+            partes_del_analisis = texto_analisis.split(separador_insights, 1)
+
+# Verificamos si la división fue exitosa (si la lista tiene 2 partes)
+            if len(partes_del_analisis) == 2:
+    # Si fue exitosa, la primera parte es el análisis general y la segunda son los insights.
+                parte_general = partes_del_analisis[0]
+                parte_insights = partes_del_analisis[1]
+
+    # Mostramos la parte del análisis general
+            st.subheader("📊 Análisis General de tus Ventas")
+            st.markdown(parte_general)
+
+    # Mostramos la sección de insights de forma destacada
+            st.subheader("💡 ¡Hemos Encontrado Oportunidades para Ti!")
+            st.markdown(parte_insights)
+
+        else:
+    # Si la división falló (solo obtuvimos 1 parte), no rompemos la app.
+    # Simplemente mostramos el análisis completo como antes.
+            st.subheader("📊 Análisis y Recomendaciones")
+            st.markdown(texto_analisis)
+ 
+# --- FIN DEL BLOQUE DE CÓDIGO DEFENSIVO ---
 
             # 2. Preparar los DataFrames para el gráfico
             df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
