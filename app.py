@@ -67,25 +67,30 @@ Analiza los siguientes datos históricos de ventas en formato CSV que te entrega
 {datos_string}
 ---
 
-Tu misión es realizar un análisis profundo y presentar los resultados usando **exactamente** los siguientes títulos en formato Markdown para cada paso. Sé detallado en cada punto:
+# MISIÓN
+Analiza los siguientes datos históricos de ventas en formato CSV que te entregaré a continuación:
+---
+{datos_string}
+---
 
-**1. Análisis de Tendencia General:**
-(Aquí va tu análisis sobre la tendencia general...)
+Tu misión es realizar un análisis profundo. Para asegurar la precisión, sigue estrictamente estos pasos en orden:
 
-**2. Detección de Patrones Semanales:**
-(Aquí va tu análisis sobre los patrones de días de semana vs. fines de semana...)
+**Paso 0 - Entendimiento de Escala:** Antes de cualquier análisis, primero suma las ventas diarias para obtener el **total de ventas de cada mes histórico**. Usa estos totales mensuales como la base principal para tu pronóstico. El pronóstico que generes debe ser también un **total mensual estimado**.
 
-**3. Identificación de Anomalías:**
-(Aquí va tu análisis sobre los días o eventos especiales con ventas inusuales...)
+**Paso 1 - Análisis de Tendencia General:** Usando los totales mensuales que calculaste, describe la tendencia general.
 
-**4. Pronóstico de Ventas:**
-(Aquí va la tabla Markdown con el pronóstico...)
+**Paso 2 - Detección de Patrones Semanales:** (Este análisis sí puedes hacerlo con los datos diarios) Compara las ventas entre la semana y el fin de semana.
 
-**5. Insights Accionables (El Consejo del Socio):**
-(Esta sección debe ir encabezada por el título '### 💡 ¡Hemos Encontrado Oportunidades para Ti!' y contener tus dos insights accionables...)
-    # FORMATO DE SALIDA OBLIGATORIO
-    Después de todo tu análisis de texto, y sin añadir ninguna palabra introductoria extra, añade el bloque de código JSON con los datos del pronóstico.
-    ```json
+**Paso 3 - Identificación de Anomalías:** (Este análisis también puedes hacerlo con los datos diarios) Busca días con ventas inusuales.
+
+**Paso 4 - Pronóstico de Ventas:** Genera la tabla de pronóstico. **Importante: Todos los montos de venta deben ser números enteros, sin decimales.**
+
+**Paso 5 - Insights Accionables (El Consejo del Socio):** Encabeza esta sección con el título '### 💡 ¡Hemos Encontrado Oportunidades para Ti!' y proporciona tus dos insights.
+
+---
+# FORMATO DE SALIDA OBLIGATORIO
+Después de todo tu análisis de texto, añade el bloque JSON. **Importante: Los valores de "Venta" en el JSON también deben ser números enteros, sin decimales.**
+```json
     {{
     "pronostico_json": [
         {{"Mes": "2025-12", "Venta": 15000.50}},
