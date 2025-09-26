@@ -23,6 +23,7 @@ st.set_page_config(
 # st.sidebar.title("SavIA")
 
 try:
+    
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception:
     st.error(
@@ -53,9 +54,9 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
         "decimal": ",", "thousands": ".", "grouping": [3], "currency": ["$", ""]
     }
     alt.renderers.set_embed_options(timeFormatLocale=es_locale, numberFormatLocale=es_number_locale)
-
+    
     st.info(f"Preparando el análisis para {nombre_usuario}... Esto puede tardar un momento.")
-
+    
     df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"], dayfirst=True)
     datos_string = df_ventas.to_csv(index=False)
 
@@ -82,7 +83,7 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
 
     ---
     # FORMATO DE SALIDA OBLIGATORIO
-    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y sin separador de miles en el JSON (ej: 75400).
+    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y con separador de miles en el JSON (ej: 75.400).
     ```json
     {{
       "pronostico_json": [
@@ -110,42 +111,9 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
             json_string = json_block_match.group(1)
             datos_pronostico = json.loads(json_string)
 
-            # INICIO DE LA CORRECCIÓN ---
-            # Definimos 'texto_analisis' PRIMERO.
-            #  Dividimos la respuesta de la IA para obtener solo el análisis de texto y quitamos espacios extra
-            texto_analisis = texto_respuesta.split("```json")[0].strip()
-
-            # La señal que usaremos para dividir
-            separador_insights = "### 💡 ¡Hemos Encontrado Oportunidades para Ti!"
-
-            # Intentamos dividir el texto usando el separador. Esto creará una lista de "partes".
-            partes_del_analisis = texto_analisis.split(separador_insights, 1)
-
-            # Verificamos si la división fue exitosa (si la lista tiene 2 partes)
-            if len(partes_del_analisis) == 2:
-                # Si fue exitosa, la primera parte es el análisis general y la segunda son los insights.
-                parte_general = partes_del_analisis[0]
-                parte_insights = partes_del_analisis[1]
-
-                # Mostramos la parte del análisis general
-                st.subheader("📊 Análisis General de tus Ventas")
-                st.markdown(parte_general)
-
-                # Mostramos la sección de insights de forma destacada
-                st.subheader("💡 ¡Hemos Encontrado Oportunidades para Ti!")
-                st.markdown(parte_insights)
-
-            else:
-                # Si la división falló (solo obtuvimos 1 parte), no rompemos la app.
-                # Simplemente mostramos el análisis completo como antes.
-                st.subheader("📊 Análisis y Recomendaciones")
-                st.markdown(texto_analisis)
-
-            # --- FIN DEL BLOQUE DE CÓDIGO DEFENSIVO ---
-
             # 2. Preparar los DataFrames para el gráfico
             df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
-            df_pronostico["Fecha"] = pd.to_datetime(df_pronostico["Mes"])
+            df_pronostico["Fecha"] = pd.to_datetime (df_pronostico["Mes"])
             df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
 
             # Agrupar ventas históricas por mes
@@ -161,11 +129,11 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
 
             df_completo = pd.merge(df_historico_mensual, df_pronostico, on='Fecha', how='outer')
 
-            # Reorganizamos la tabla para que Altair la entienda mejor
+# Reorganizamos la tabla para que Altair la entienda mejor
             df_para_grafico = df_completo.melt(id_vars='Fecha', var_name='Leyenda', value_name='Monto')
 
-            # 4. Crear el gráfico con Altair y títulos en español
-            # ... (código anterior que prepara df_para_grafico)
+# 4. Crear el gráfico con Altair y títulos en español
+             # ... (código anterior que prepara df_para_grafico)
 
             base = alt.Chart(df_para_grafico).encode(
                 x=alt.X('Fecha:T', title='Mes', axis=alt.Axis(format='%b %Y')),
@@ -176,7 +144,7 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
 
             linea_historica = base.transform_filter(alt.datum.Leyenda == 'Ventas Históricas').mark_line(point=True)
             linea_pronostico = base.transform_filter(alt.datum.Leyenda == 'Pronóstico').mark_line(point=True, strokeDash=[5,5])
-
+            
             # --- INICIO DE LA MODIFICACIÓN ---
             # Obtenemos la última fecha con datos históricos para dibujar la línea
             ultima_fecha_historica = df_historico_mensual['Fecha'].max()
@@ -189,45 +157,118 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
 
             # Unimos las dos líneas Y la nueva regla vertical en un solo gráfico
             chart = (linea_historica + linea_pronostico + linea_vertical).interactive()
-
+            
             st.altair_chart(chart, use_container_width=True)
+# Código Nuevo (el reemplazo)
 
-            # Código Nuevo (el reemplazo)
-            # Dividimos la respuesta de la IA para obtener solo el análisis de texto
+# Dividimos la respuesta de la IA para obtener solo el análisis de texto
             texto_analisis = texto_respuesta.split("```json")[0]
 
-            # La señal que buscará nuestro código
+# La señal que buscará nuestro código
             separador_insights = "### 💡 ¡Hemos Encontrado Oportunidades para Ti!"
 
-            # Verificamos si la señal de insights está en la respuesta
+# Verificamos si la señal de insights está en la respuesta
             if separador_insights in texto_analisis:
-                # Dividimos el análisis en dos partes: antes y después de la señal
+    # Dividimos el análisis en dos partes: antes y después de la señal
                 parte_general, parte_insights = texto_analisis.split(separador_insights, 1)
 
-                # Mostramos la parte del análisis general
-                st.subheader("📊 Análisis General de tus Ventas")
-                st.markdown(parte_general)
+    # Mostramos la parte del análisis general
+            st.subheader("📊 Análisis General de tus Ventas")
+            st.markdown(parte_general)
 
-                # Mostramos la sección de insights de forma destacada
-                st.subheader("💡 ¡Hemos Encontrado Oportunidades para Ti!")
-                st.markdown(parte_insights)
-
-            else:
-                # Si por alguna razón la IA no usó el separador, mostramos todo como antes
-                st.subheader("📊 Análisis y Recomendaciones")
-                st.markdown(texto_analisis)
+    # Mostramos la sección de insights de forma destacada
+            st.subheader("💡 ¡Hemos Encontrado Oportunidades para Ti!")
+            st.markdown(parte_insights)
 
         else:
+    # Si por alguna razón la IA no usó el separador, mostramos todo como antes
+             st.subheader("📊 Análisis y Recomendaciones")
+             st.markdown(texto_analisis)              
+
+   # else:
             # Si no encontramos el JSON, mostramos la respuesta completa como antes
-            st.subheader("📊 Análisis y Recomendaciones")
-            st.markdown(texto_respuesta)
+      #      st.subheader("📊 Análisis y Recomendaciones")
+         #   st.markdown(texto_respuesta)
 
     except Exception as e:
-        st.error(
+                 st.error(
             f"Ocurrió un error al contactar con el modelo de IA o procesar la respuesta: {e}"
         )
-        return None
-
     return None
 
 # --- FIN DE LA MODIFICACIÓN ---
+
+
+
+
+# --- INTERFAZ DE USUARIO (LO QUE VE EL CLIENTE) ---
+
+# --- TÍTULO PRINCIPAL CON LOGO ---
+
+# Creamos dos columnas. El valor [1, 4] significa que la columna del título
+# será 4 veces más ancha que la del logo. Puedes jugar con estos números.
+col1, col2 = st.columns([1, 4])
+
+# Usamos un bloque "with" para decirle a Streamlit qué va en cada columna.
+with col1:
+    st.image("Logo savIA.png", width=100)  # Ajusta el ancho a tu gusto
+
+with col2:
+    st.title("SavIA")
+    # Para el subtítulo, usamos st.markdown para darle un estilo diferente
+    st.markdown("#### Tu Socio de Análisis de Datos")
+
+# --- NUEVO CAMPO PARA EL NOMBRE ---
+nombre_usuario = st.text_input("Escribe tu nombre o el de tu negocio:", "Emprendedor")
+
+st.header("MVP: Pronóstico de Ventas con IA")
+st.write(
+    "Sube tu archivo de ventas en formato CSV para obtener un pronóstico para los próximos 3 meses."
+)
+
+# Componente para subir el archivo
+archivo_cargado = st.file_uploader(
+    "Selecciona tu archivo CSV",
+    type=["csv"],
+    help="El archivo debe tener dos columnas: 'Fecha' y 'Ventas'",
+)
+
+if archivo_cargado is not None:
+    try:
+        # Usamos Pandas para leer el archivo CSV
+       # Primero, intentamos leer el CSV asumiendo que el separador es un punto y coma (;)
+        # que es muy común en sistemas configurados en español.
+        # El encoding='utf-8-sig' ayuda a eliminar caracteres invisibles al inicio del archivo.
+        df = pd.read_csv(archivo_cargado, delimiter=';', encoding='utf-8-sig')
+
+        # Si después de leerlo, el resultado es una tabla con una sola columna,
+        # significa que el separador probablemente era una coma.
+        if df.shape[1] == 1:
+            # 'rebobinamos' el archivo para leerlo desde el principio de nuevo
+            archivo_cargado.seek(0)
+            df = pd.read_csv(archivo_cargado, delimiter=',', encoding='utf-8-sig')
+        
+        # Como medida de seguridad final, limpiamos los nombres de las columnas
+        # para que sean consistentes.
+        df.columns = df.columns.str.strip() # Quita espacios al inicio/final (ej: " Fecha " -> "Fecha")
+        df.columns = df.columns.str.title() # Convierte a formato Título (ej: "fecha" -> "Fecha")
+
+        st.success("¡Archivo cargado exitosamente!")
+        st.write("**Vista Previa de tus Datos:**")
+        st.dataframe(df.head())  # Muestra las primeras 5 filas
+
+        # Botón para iniciar el análisis
+        if st.button("✨ Generar Pronóstico"):
+            with st.spinner("SavIA está pensando,{nombre_usuario}..."):
+                resultado_ia = generar_pronostico(df, nombre_usuario)
+
+            if resultado_ia:
+                st.subheader("📈 Aquí está tu Análisis y Pronóstico")
+                # Usamos st.markdown para que interprete el formato (negritas, tablas, etc.)
+                st.markdown(resultado_ia)
+
+    except Exception as e:
+        st.error(
+            f"Error al procesar el archivo: {e}. Asegúrate de que tenga las columnas 'Fecha' y 'Ventas'."
+        )
+
