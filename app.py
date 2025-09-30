@@ -105,7 +105,7 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     # --- FIN DEL NUEVO PROMPT ---
 
     try:
-        model = genai.GenerativeModel("gemini-pro")
+        model = genai.GenerativeModel("gemini-1.5-flash-latest")
         response = model.generate_content(prompt)
 
         # --- NUEVO CÓDIGO PARA PROCESAR Y GRAFICAR ---
