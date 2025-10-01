@@ -167,36 +167,34 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
             chart = (linea_historica + linea_pronostico + linea_vertical).interactive()
             
             st.altair_chart(chart, use_container_width=True)
-# Código Nuevo (el reemplazo)
+            
+            
+# --- INICIO DEL BLOQUE DE CÓDIGO DEFENSIVO ---
 
-# Dividimos la respuesta de la IA para obtener solo el análisis de texto
-            texto_analisis = texto_respuesta.split("```json")[0]
+# La señal que usaremos para dividir, ahora personalizada con el nombre
+            separador_insights = f"### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!"
 
-# La señal que buscará nuestro código
-            separador_insights = "### 💡 ¡Hemos Encontrado Oportunidades para Ti!"
+# Intentamos dividir el texto usando el separador.
+            partes_del_analisis = texto_analisis.split(separador_insights, 1)
 
-# Verificamos si la señal de insights está en la respuesta
-            if separador_insights in texto_analisis:
-    # Dividimos el análisis en dos partes: antes y después de la señal
-                parte_general, parte_insights = texto_analisis.split(separador_insights, 1)
+        # Verificamos si la división fue exitosa (si la lista tiene 2 partes)
+        if len(partes_del_analisis) == 2:
+            # Si fue exitosa, asignamos cada parte
+            parte_general = partes_del_analisis[0]
+            parte_insights = partes_del_analisis[1]
 
-    # Mostramos la parte del análisis general
             st.subheader("📊 Análisis General de tus Ventas")
             st.markdown(parte_general)
 
-    # Mostramos la sección de insights de forma destacada
-            st.subheader("💡 ¡Hemos Encontrado Oportunidades para Ti!")
+            st.subheader(f"💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!")
             st.markdown(parte_insights)
 
         else:
-    # Si por alguna razón la IA no usó el separador, mostramos todo como antes
-             st.subheader("📊 Análisis y Recomendaciones")
-             st.markdown(texto_analisis)              
+            # PLAN B: Si la división falló (solo hay 1 parte), mostramos todo junto sin errores.
+            st.subheader("📊 Análisis y Recomendaciones")
+            st.markdown(texto_analisis)
 
-   # else:
-            # Si no encontramos el JSON, mostramos la respuesta completa como antes
-      #      st.subheader("📊 Análisis y Recomendaciones")
-         #   st.markdown(texto_respuesta)
+        # --- FIN DEL BLOQUE DE CÓDIGO DEFENSIVO ---
 
     except Exception as e:
                  st.error(
