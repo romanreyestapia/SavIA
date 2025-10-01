@@ -61,7 +61,8 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
 
     ---
     # FORMATO DE SALIDA OBLIGATORIO
-    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y sin separador de miles en el JSON (ej: 75400).
+    # 💡 CAMBIO CRÍTICO: La instrucción ahora es clara y correcta para el formato JSON.
+    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y SIN separador de miles en el JSON (ej: 75400).
     ```json
     {{
       "pronostico_json": [
@@ -74,7 +75,6 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     """
     
     try:
-        # 💡 CAMBIO 1: Usamos un nombre de modelo oficial y estable.
         model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(prompt)
         texto_respuesta = response.text
@@ -168,9 +168,7 @@ if archivo_cargado is not None:
         st.dataframe(df.head())
 
         if st.button("✨ Generar Pronóstico"):
-            # 💡 CAMBIO 2: Corregimos el f-string del spinner.
             with st.spinner(f"SavIA está pensando, {nombre_usuario}..."):
-                # 💡 CAMBIO 3: La función se llama directamente, ya no se asigna a una variable.
                 generar_pronostico(df, nombre_usuario)
 
     except Exception as e:
