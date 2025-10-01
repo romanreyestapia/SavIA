@@ -105,104 +105,66 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     # --- FIN DEL NUEVO PROMPT ---
 
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash ")
         response = model.generate_content(prompt)
-
-        # --- NUEVO CÓDIGO PARA PROCESAR Y GRAFICAR ---
         texto_respuesta = response.text
 
-        # 1. Extraer el bloque JSON del texto
-        json_block_match = re.search(
-            r"```json\n({.*?})\n```", texto_respuesta, re.DOTALL)
+        # --- CORRECCIÓN CLAVE ---
+        # 1. DEFINIMOS 'texto_analisis' INMEDIATAMENTE
+        # Esto asegura que la variable siempre exista.
+        texto_analisis = texto_respuesta.split("```json")[0].strip()
 
-        if json_block_match:
-            json_string = json_block_match.group(1)
-            datos_pronostico = json.loads(json_string)
+        # 2. MOSTRAMOS EL ANÁLISIS DE TEXTO USANDO EL CÓDIGO DEFENSIVO
+        separador_insights = f"### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!"
+        partes_del_analisis = texto_analisis.split(separador_insights, 1)
 
-            # 2. Preparar los DataFrames para el gráfico
-            df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
-            df_pronostico["Fecha"] = pd.to_datetime (df_pronostico["Mes"])
-            df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
-
-            # Agrupar ventas históricas por mes
-            df_historico_mensual = (
-                df_ventas.set_index("Fecha").resample("M").sum().reset_index()
-            )
-            df_historico_mensual = df_historico_mensual.rename(
-                columns={"Ventas": "Ventas Históricas"}
-            )
-
-            # 3. Unir y preparar los datos para el gráfico en español
-            st.subheader("📈 Gráfico de Ventas Históricas y Pronóstico")
-
-            df_completo = pd.merge(df_historico_mensual, df_pronostico, on='Fecha', how='outer')
-
-# Reorganizamos la tabla para que Altair la entienda mejor
-            df_para_grafico = df_completo.melt(id_vars='Fecha', var_name='Leyenda', value_name='Monto')
-
-# 4. Crear el gráfico con Altair y títulos en español
-             # ... (código anterior que prepara df_para_grafico)
-
-            base = alt.Chart(df_para_grafico).encode(
-                x=alt.X('Fecha:T', title='Mes', axis=alt.Axis(format='%b %Y')),
-                y=alt.Y('Monto:Q', title='Monto de Venta ($)'),
-                color=alt.Color('Leyenda:N', title='Métrica', scale=alt.Scale(domain=['Ventas Históricas', 'Pronóstico'], range=['#1f77b4', '#ff7f0e'])),
-                tooltip=[alt.Tooltip('Fecha:T', title='Mes', format='%B de %Y'), alt.Tooltip('Monto:Q', title='Monto', format='$,.0f'), alt.Tooltip('Leyenda:N', title='Métrica')]
-            )
-
-            linea_historica = base.transform_filter(alt.datum.Leyenda == 'Ventas Históricas').mark_line(point=True)
-            linea_pronostico = base.transform_filter(alt.datum.Leyenda == 'Pronóstico').mark_line(point=True, strokeDash=[5,5])
-            
-            # --- INICIO DE LA MODIFICACIÓN ---
-            # Obtenemos la última fecha con datos históricos para dibujar la línea
-            ultima_fecha_historica = df_historico_mensual['Fecha'].max()
-
-            # Creamos la línea vertical (regla) en esa fecha
-            linea_vertical = alt.Chart(pd.DataFrame({'fecha': [ultima_fecha_historica]})).mark_rule(color='gray', strokeWidth=1.5, strokeDash=[3,3]).encode(
-                x='fecha:T'
-            )
-            # --- FIN DE LA MODIFICACIÓN ---
-
-            # Unimos las dos líneas Y la nueva regla vertical en un solo gráfico
-            chart = (linea_historica + linea_pronostico + linea_vertical).interactive()
-            
-            st.altair_chart(chart, use_container_width=True)
-            
-            
-# --- INICIO DEL BLOQUE DE CÓDIGO DEFENSIVO ---
-
-# La señal que usaremos para dividir, ahora personalizada con el nombre
-            separador_insights = f"### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!"
-
-# Intentamos dividir el texto usando el separador.
-            partes_del_analisis = texto_analisis.split(separador_insights, 1)
-
-        # Verificamos si la división fue exitosa (si la lista tiene 2 partes)
         if len(partes_del_analisis) == 2:
-            # Si fue exitosa, asignamos cada parte
-            parte_general = partes_del_analisis[0]
-            parte_insights = partes_del_analisis[1]
-
+            parte_general, parte_insights = partes_del_analisis
             st.subheader("📊 Análisis General de tus Ventas")
             st.markdown(parte_general)
-
             st.subheader(f"💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!")
             st.markdown(parte_insights)
-
         else:
-            # PLAN B: Si la división falló (solo hay 1 parte), mostramos todo junto sin errores.
             st.subheader("📊 Análisis y Recomendaciones")
             st.markdown(texto_analisis)
 
-        # --- FIN DEL BLOQUE DE CÓDIGO DEFENSIVO ---
+        # 3. LUEGO, INTENTAMOS MOSTRAR EL GRÁFICO SI EL JSON EXISTE
+        json_block_match = re.search(r"```json\n({.*?})\n```", texto_respuesta, re.DOTALL)
+        if json_block_match:
+            # Si se encuentra el JSON, se procesa y se muestra el gráfico.
+            json_string = json_block_match.group(1)
+            datos_pronostico = json.loads(json_string)
+            
+            df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
+            df_pronostico["Fecha"] = pd.to_datetime(df_pronostico["Mes"])
+            df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
 
+            df_historico_mensual = df_ventas.set_index("Fecha").resample("M").sum().reset_index()
+            df_historico_mensual = df_historico_mensual.rename(columns={"Ventas": "Ventas Históricas"})
+
+            st.subheader("📈 Gráfico de Ventas Históricas y Pronóstico")
+            df_completo = pd.merge(df_historico_mensual, df_pronostico, on="Fecha", how="outer")
+            df_para_grafico = df_completo.melt(id_vars="Fecha", var_name="Leyenda", value_name="Monto")
+
+            base = alt.Chart(df_para_grafico).encode(
+                x=alt.X("Fecha:T", title="Mes", axis=alt.Axis(format="%b %Y")),
+                y=alt.Y("Monto:Q", title="Monto de Venta ($)"),
+                color=alt.Color("Leyenda:N", title="Métrica", scale=alt.Scale(domain=["Ventas Históricas", "Pronóstico"], range=["#1f77b4", "#ff7f0e"])),
+                tooltip=[alt.Tooltip("Fecha:T", title="Mes", format="%B de %Y"), alt.Tooltip("Monto:Q", title="Monto", format="$,.0f"), alt.Tooltip("Leyenda:N", title="Métrica")]
+            )
+
+            linea_historica = base.transform_filter(alt.datum.Leyenda == "Ventas Históricas").mark_line(point=True)
+            linea_pronostico = base.transform_filter(alt.datum.Leyenda == "Pronóstico").mark_line(point=True, strokeDash=[5, 5])
+            
+            ultima_fecha_historica = df_historico_mensual["Fecha"].max()
+            linea_vertical = alt.Chart(pd.DataFrame({"fecha": [ultima_fecha_historica]})).mark_rule(color="gray", strokeWidth=1.5, strokeDash=[3, 3]).encode(x="fecha:T")
+            
+            chart = (linea_historica + linea_pronostico + linea_vertical).interactive()
+            st.altair_chart(chart, use_container_width=True)
+        
     except Exception as e:
-                 st.error(
-            f"Ocurrió un error al contactar con el modelo de IA o procesar la respuesta: {e}"
-        )
+        st.error(f"Ocurrió un error al contactar con el modelo de IA o procesar la respuesta: {e}")
     return None
-
-# --- FIN DE LA MODIFICACIÓN ---
 
 
 
