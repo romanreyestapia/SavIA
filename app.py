@@ -1,5 +1,3 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
@@ -26,8 +24,8 @@ except Exception as e:
 # --- FUNCIÓN PRINCIPAL DE PROCESAMIENTO ---
 def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     """
-    Toma un DataFrame de ventas y el nombre del usuario, llama a la IA, procesa la respuesta
-    y muestra tanto el gráfico como el análisis de texto.
+    Toma un DataFrame de ventas, lo pre-procesa, llama a la IA con datos agregados,
+    y muestra el gráfico y el análisis de texto.
     """
     es_locale = {
         "dateTime": "%A, %e de %B de %Y, %H:%M:%S", "date": "%d/%m/%Y", "time": "%H:%M:%S",
@@ -41,8 +39,18 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     }
     alt.renderers.set_embed_options(timeFormatLocale=es_locale, numberFormatLocale=es_number_locale)
     
+    st.info(f"Preparando el análisis para {nombre_usuario}... Esto puede tardar un momento.")
+    
     df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"], dayfirst=True)
-    datos_string = df_ventas.to_csv(index=False)
+    
+    # --- 💡 CAMBIO CRÍTICO: Pre-procesamiento de datos ANTES de llamar a la IA ---
+    # Calculamos los totales mensuales nosotros mismos.
+    df_historico_mensual = df_ventas.set_index("Fecha").resample("M").sum().reset_index()
+    df_historico_mensual["Fecha"] = df_historico_mensual["Fecha"].dt.strftime('%Y-%m')
+    df_historico_mensual = df_historico_mensual.rename(columns={"Ventas": "Total_Ventas_Mensual"})
+
+    # Creamos un string limpio y resumido para la IA.
+    datos_mensuales_string = df_historico_mensual.to_string(index=False)
 
     prompt = f"""
     # ROL Y PERSONALIDAD
@@ -50,25 +58,26 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     Tu tono debe ser colaborativo, cálido y alentador. Dirígete al usuario por su nombre: '{nombre_usuario}'.
 
     # MISIÓN
-    Analiza los siguientes datos de ventas para {nombre_usuario}. Sigue estrictamente estos pasos:
+    Analiza los siguientes **totales de ventas mensuales** para {nombre_usuario}. Ya he procesado los datos diarios por ti.
+    ---
+    {datos_mensuales_string}
+    ---
 
-    **Paso 0 - Entendimiento de Escala:** Suma las ventas diarias para obtener el total de cada mes histórico. Usa estos totales como base para tu pronóstico mensual.
-    **Paso 1 - Análisis de Tendencia General:** Usando los totales mensuales, describe la tendencia general.
-    **Paso 2 - Detección de Patrones Semanales:** Compara ventas de semana vs. fin de semana.
-    **Paso 3 - Identificación de Anomalías:** Busca días con ventas inusuales.
-    **Paso 4 - Pronóstico de Ventas:** Genera la tabla de pronóstico. IMPORTANTE: Todos los montos deben ser números enteros y usar un punto (.) como separador de miles (ej: 75.400).
-    **Paso 5 - Insights Accionables:** Encabeza esta sección con '### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!'.
+    Tu misión es realizar un análisis profundo basado en estos totales mensuales y presentar los resultados usando exactamente los siguientes títulos en formato Markdown:
+
+    **1. Análisis de Tendencia General:** Describe la tendencia que observas en estos totales mensuales.
+    **2. Pronóstico de Ventas:** Basado en la tendencia de los totales mensuales, genera la tabla de pronóstico para los próximos 3 meses. Los montos deben ser coherentes con la escala de los datos históricos. IMPORTANTE: Todos los montos deben ser números enteros y usar un punto (.) como separador de miles (ej: 2.719.847).
+    **3. Insights Accionables (El Consejo del Socio):** Encabeza esta sección con '### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!'. Proporciona un insight accionable basado en la tendencia general que has observado.
 
     ---
     # FORMATO DE SALIDA OBLIGATORIO
-    # 💡 CAMBIO CRÍTICO: La instrucción ahora es clara y correcta para el formato JSON.
-    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y SIN separador de miles en el JSON (ej: 75400).
+    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y SIN separador de miles en el JSON (ej: 2719847).
     ```json
     {{
       "pronostico_json": [
-        {{"Mes": "2025-12", "Venta": 15000}},
-        {{"Mes": "2026-01", "Venta": 16000}},
-        {{"Mes": "2026-02", "Venta": 17500}}
+        {{"Mes": "2025-10", "Venta": 2800000}},
+        {{"Mes": "2025-11", "Venta": 2900000}},
+        {{"Mes": "2025-12", "Venta": 3000000}}
       ]
     }}
     ```
@@ -102,12 +111,13 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
             df_pronostico = pd.DataFrame(datos_pronostico["pronostico_json"])
             df_pronostico["Fecha"] = pd.to_datetime(df_pronostico["Mes"])
             df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
-
-            df_historico_mensual = df_ventas.set_index("Fecha").resample("M").sum().reset_index()
-            df_historico_mensual = df_historico_mensual.rename(columns={"Ventas": "Ventas Históricas"})
+            
+            # Reutilizamos el DataFrame mensual que ya calculamos
+            df_historico_mensual_para_grafico = df_ventas.set_index("Fecha").resample("M").sum().reset_index()
+            df_historico_mensual_para_grafico = df_historico_mensual_para_grafico.rename(columns={"Ventas": "Ventas Históricas"})
 
             st.subheader("📈 Gráfico de Ventas Históricas y Pronóstico")
-            df_completo = pd.merge(df_historico_mensual, df_pronostico, on="Fecha", how="outer")
+            df_completo = pd.merge(df_historico_mensual_para_grafico, df_pronostico, on="Fecha", how="outer")
             df_para_grafico = df_completo.melt(id_vars="Fecha", var_name="Leyenda", value_name="Monto")
 
             base = alt.Chart(df_para_grafico).encode(
@@ -120,7 +130,7 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
             linea_historica = base.transform_filter(alt.datum.Leyenda == "Ventas Históricas").mark_line(point=True)
             linea_pronostico = base.transform_filter(alt.datum.Leyenda == "Pronóstico").mark_line(point=True, strokeDash=[5, 5])
             
-            ultima_fecha_historica = df_historico_mensual["Fecha"].max()
+            ultima_fecha_historica = df_historico_mensual_para_grafico["Fecha"].max()
             linea_vertical = alt.Chart(pd.DataFrame({"fecha": [ultima_fecha_historica]})).mark_rule(color="gray", strokeWidth=1.5, strokeDash=[3, 3]).encode(x="fecha:T")
             
             chart = (linea_historica + linea_pronostico + linea_vertical).interactive()
@@ -175,3 +185,4 @@ if archivo_cargado is not None:
         st.error(
             f"Error al procesar el archivo: {e}. Asegúrate de que tenga las columnas 'Fecha' y 'Ventas'."
         )
+
