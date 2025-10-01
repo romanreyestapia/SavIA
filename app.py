@@ -75,7 +75,7 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     
     try:
         # 💡 CAMBIO 1: Usamos un nombre de modelo oficial y estable.
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(prompt)
         texto_respuesta = response.text
 
