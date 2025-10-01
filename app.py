@@ -10,47 +10,25 @@ import altair as alt
 
 # --- CONFIGURACIÓN DE LA PÁGINA Y LA API ---
 
-# Título de la aplicación que se verá en el navegador
 st.set_page_config(
     page_title="SavIA - Pronóstico de Ventas", page_icon="Logo savIA.png"
 )
 
-# Consejo de socio: NUNCA escribas tu API Key directamente en el código.
-# Usaremos los "Secrets" de Streamlit.
-# Cuando despliegues la app, configurarás este valor en la plataforma.
-# Mostramos el logo en la barra lateral
-# st.sidebar.image("Logo savIA.png", width=100)
-# st.sidebar.title("SavIA")
-
-
 try:
-    # 💡 CAMBIO 1: Extrae la clave API de forma explícita.
-    api_key = st.secrets["GOOGLE_API_KEY"]
-    
-    # 💡 CAMBIO 2: Pasa la variable al configurador.
-    genai.configure(api_key=api_key)
-
-    # Puedes dejar este mensaje de éxito temporal si quieres
-    # st.sidebar.success("Conexión con SavIA establecida con éxito.") 
-
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception as e:
     st.error(
-        # Ahora el error es más limpio
-        f"Error al configurar la API de Google. Por favor, asegúrate de que la clave API esté configurada correctamente en los secretos de Streamlit. Detalle: {e}" 
+        f"Error al configurar la API de Google. Por favor, asegúrate de que la clave API esté configurada correctamente en los secretos de Streamlit. Detalle: {e}"
     )
     st.stop()
 
 
 # --- FUNCIÓN PRINCIPAL DE PROCESAMIENTO ---
-
-
-# Reemplaza tu función generar_pronostico completa por esta:
 def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     """
     Toma un DataFrame de ventas y el nombre del usuario, llama a la IA, procesa la respuesta
     y muestra tanto el gráfico como el análisis de texto.
     """
-    # --- DICCIONARIOS DE LOCALIZACIÓN PARA EL GRÁFICO ---
     es_locale = {
         "dateTime": "%A, %e de %B de %Y, %H:%M:%S", "date": "%d/%m/%Y", "time": "%H:%M:%S",
         "periods": ["AM", "PM"], "days": ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
@@ -63,12 +41,9 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     }
     alt.renderers.set_embed_options(timeFormatLocale=es_locale, numberFormatLocale=es_number_locale)
     
-    st.info(f"Preparando el análisis para {nombre_usuario}... Esto puede tardar un momento.")
-    
     df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"], dayfirst=True)
     datos_string = df_ventas.to_csv(index=False)
 
-    # --- PROMPT FINAL CON PERSONALIZACIÓN Y FORMATO DE NÚMEROS ---
     prompt = f"""
     # ROL Y PERSONALIDAD
     Eres SavIA, un socio estratégico y un aliado para el dueño de la PyME. Tu objetivo es empoderarlo.
@@ -78,20 +53,15 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     Analiza los siguientes datos de ventas para {nombre_usuario}. Sigue estrictamente estos pasos:
 
     **Paso 0 - Entendimiento de Escala:** Suma las ventas diarias para obtener el total de cada mes histórico. Usa estos totales como base para tu pronóstico mensual.
-
     **Paso 1 - Análisis de Tendencia General:** Usando los totales mensuales, describe la tendencia general.
-
     **Paso 2 - Detección de Patrones Semanales:** Compara ventas de semana vs. fin de semana.
-
     **Paso 3 - Identificación de Anomalías:** Busca días con ventas inusuales.
-
     **Paso 4 - Pronóstico de Ventas:** Genera la tabla de pronóstico. IMPORTANTE: Todos los montos deben ser números enteros y usar un punto (.) como separador de miles (ej: 75.400).
-
     **Paso 5 - Insights Accionables:** Encabeza esta sección con '### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!'.
 
     ---
     # FORMATO DE SALIDA OBLIGATORIO
-    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y con separador de miles en el JSON (ej: 75.400).
+    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y sin separador de miles en el JSON (ej: 75400).
     ```json
     {{
       "pronostico_json": [
@@ -102,19 +72,15 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     }}
     ```
     """
-    # --- FIN DEL NUEVO PROMPT ---
-
+    
     try:
+        # 💡 CAMBIO 1: Usamos un nombre de modelo oficial y estable.
         model = genai.GenerativeModel("gemini-2.0-flash")
         response = model.generate_content(prompt)
         texto_respuesta = response.text
 
-        # --- CORRECCIÓN CLAVE ---
-        # 1. DEFINIMOS 'texto_analisis' INMEDIATAMENTE
-        # Esto asegura que la variable siempre exista.
         texto_analisis = texto_respuesta.split("```json")[0].strip()
 
-        # 2. MOSTRAMOS EL ANÁLISIS DE TEXTO USANDO EL CÓDIGO DEFENSIVO
         separador_insights = f"### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!"
         partes_del_analisis = texto_analisis.split(separador_insights, 1)
 
@@ -128,10 +94,8 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
             st.subheader("📊 Análisis y Recomendaciones")
             st.markdown(texto_analisis)
 
-        # 3. LUEGO, INTENTAMOS MOSTRAR EL GRÁFICO SI EL JSON EXISTE
         json_block_match = re.search(r"```json\n({.*?})\n```", texto_respuesta, re.DOTALL)
         if json_block_match:
-            # Si se encuentra el JSON, se procesa y se muestra el gráfico.
             json_string = json_block_match.group(1)
             datos_pronostico = json.loads(json_string)
             
@@ -161,32 +125,21 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
             
             chart = (linea_historica + linea_pronostico + linea_vertical).interactive()
             st.altair_chart(chart, use_container_width=True)
-        
+            
     except Exception as e:
         st.error(f"Ocurrió un error al contactar con el modelo de IA o procesar la respuesta: {e}")
-    return None
-
-
-
+        return None
 
 # --- INTERFAZ DE USUARIO (LO QUE VE EL CLIENTE) ---
-
-# --- TÍTULO PRINCIPAL CON LOGO ---
-
-# Creamos dos columnas. El valor [1, 4] significa que la columna del título
-# será 4 veces más ancha que la del logo. Puedes jugar con estos números.
 col1, col2 = st.columns([1, 4])
 
-# Usamos un bloque "with" para decirle a Streamlit qué va en cada columna.
 with col1:
-    st.image("Logo savIA.png", width=100)  # Ajusta el ancho a tu gusto
+    st.image("Logo savIA.png", width=100)
 
 with col2:
     st.title("SavIA")
-    # Para el subtítulo, usamos st.markdown para darle un estilo diferente
     st.markdown("#### Tu Socio de Análisis de Datos")
 
-# --- NUEVO CAMPO PARA EL NOMBRE ---
 nombre_usuario = st.text_input("Escribe tu nombre o el de tu negocio:", "Emprendedor")
 
 st.header("MVP: Pronóstico de Ventas con IA")
@@ -194,7 +147,6 @@ st.write(
     "Sube tu archivo de ventas en formato CSV para obtener un pronóstico para los próximos 3 meses."
 )
 
-# Componente para subir el archivo
 archivo_cargado = st.file_uploader(
     "Selecciona tu archivo CSV",
     type=["csv"],
@@ -203,40 +155,25 @@ archivo_cargado = st.file_uploader(
 
 if archivo_cargado is not None:
     try:
-        # Usamos Pandas para leer el archivo CSV
-       # Primero, intentamos leer el CSV asumiendo que el separador es un punto y coma (;)
-        # que es muy común en sistemas configurados en español.
-        # El encoding='utf-8-sig' ayuda a eliminar caracteres invisibles al inicio del archivo.
         df = pd.read_csv(archivo_cargado, delimiter=';', encoding='utf-8-sig')
-
-        # Si después de leerlo, el resultado es una tabla con una sola columna,
-        # significa que el separador probablemente era una coma.
         if df.shape[1] == 1:
-            # 'rebobinamos' el archivo para leerlo desde el principio de nuevo
             archivo_cargado.seek(0)
             df = pd.read_csv(archivo_cargado, delimiter=',', encoding='utf-8-sig')
         
-        # Como medida de seguridad final, limpiamos los nombres de las columnas
-        # para que sean consistentes.
-        df.columns = df.columns.str.strip() # Quita espacios al inicio/final (ej: " Fecha " -> "Fecha")
-        df.columns = df.columns.str.title() # Convierte a formato Título (ej: "fecha" -> "Fecha")
+        df.columns = df.columns.str.strip()
+        df.columns = df.columns.str.title()
 
         st.success("¡Archivo cargado exitosamente!")
         st.write("**Vista Previa de tus Datos:**")
-        st.dataframe(df.head())  # Muestra las primeras 5 filas
+        st.dataframe(df.head())
 
-        # Botón para iniciar el análisis
         if st.button("✨ Generar Pronóstico"):
-            with st.spinner("SavIA está pensando,{nombre_usuario}..."):
-                resultado_ia = generar_pronostico(df, nombre_usuario)
-
-            if resultado_ia:
-                st.subheader("📈 Aquí está tu Análisis y Pronóstico")
-                # Usamos st.markdown para que interprete el formato (negritas, tablas, etc.)
-                st.markdown(resultado_ia)
+            # 💡 CAMBIO 2: Corregimos el f-string del spinner.
+            with st.spinner(f"SavIA está pensando, {nombre_usuario}..."):
+                # 💡 CAMBIO 3: La función se llama directamente, ya no se asigna a una variable.
+                generar_pronostico(df, nombre_usuario)
 
     except Exception as e:
         st.error(
             f"Error al procesar el archivo: {e}. Asegúrate de que tenga las columnas 'Fecha' y 'Ventas'."
         )
-
