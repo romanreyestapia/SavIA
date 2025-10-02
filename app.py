@@ -53,8 +53,17 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     df_historico_mensual = df_historico_mensual.rename(columns={"Ventas": "Total_Ventas_Mensual"})
     datos_mensuales_string = df_historico_mensual.to_string(index=False)
 
-    # RESUMEN 2: Patrones diarios/semanales (para los insights)
-    df_ventas['Dia_Semana'] = df_ventas['Fecha'].dt.day_name(locale='es_ES.UTF-8')
+    # --- 💡 CAMBIO CRÍTICO: Traducción manual de los días de la semana ---
+    # Obtenemos el nombre del día en inglés (que siempre funciona)
+    df_ventas['Dia_Semana_en'] = df_ventas['Fecha'].dt.day_name()
+    # Creamos un diccionario para traducir
+    dias_map = {
+        'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+        'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
+    }
+    # Aplicamos la traducción para crear la columna en español
+    df_ventas['Dia_Semana'] = df_ventas['Dia_Semana_en'].map(dias_map)
+    
     ventas_por_dia = df_ventas.groupby('Dia_Semana')['Ventas'].mean().round(0).sort_values(ascending=False)
     resumen_diario_string = ventas_por_dia.to_string()
 
@@ -201,6 +210,5 @@ if archivo_cargado is not None:
         st.error(
             f"Error al procesar el archivo: {e}. Asegúrate de que tenga las columnas 'Fecha' y 'Ventas'."
         )
-
 
 
