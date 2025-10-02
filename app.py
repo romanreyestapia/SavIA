@@ -1,3 +1,5 @@
+# app.py
+
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
@@ -24,8 +26,8 @@ except Exception as e:
 # --- FUNCIÓN PRINCIPAL DE PROCESAMIENTO ---
 def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     """
-    Toma un DataFrame de ventas, lo pre-procesa, llama a la IA con datos agregados,
-    y muestra el gráfico y el análisis de texto.
+    Toma un DataFrame de ventas, lo pre-procesa en resúmenes mensuales y diarios,
+    llama a la IA con ambos resúmenes, y muestra el gráfico y el análisis.
     """
     es_locale = {
         "dateTime": "%A, %e de %B de %Y, %H:%M:%S", "date": "%d/%m/%Y", "time": "%H:%M:%S",
@@ -43,14 +45,18 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     
     df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"], dayfirst=True)
     
-    # --- 💡 CAMBIO CRÍTICO: Pre-procesamiento de datos ANTES de llamar a la IA ---
-    # Calculamos los totales mensuales nosotros mismos.
+    # --- 💡 CAMBIO LÓGICO 1: Pre-procesamiento de AMBOS resúmenes ---
+    
+    # RESUMEN 1: Totales mensuales (para el pronóstico)
     df_historico_mensual = df_ventas.set_index("Fecha").resample("M").sum().reset_index()
     df_historico_mensual["Fecha"] = df_historico_mensual["Fecha"].dt.strftime('%Y-%m')
     df_historico_mensual = df_historico_mensual.rename(columns={"Ventas": "Total_Ventas_Mensual"})
-
-    # Creamos un string limpio y resumido para la IA.
     datos_mensuales_string = df_historico_mensual.to_string(index=False)
+
+    # RESUMEN 2: Patrones diarios/semanales (para los insights)
+    df_ventas['Dia_Semana'] = df_ventas['Fecha'].dt.day_name(locale='es_ES.UTF-8')
+    ventas_por_dia = df_ventas.groupby('Dia_Semana')['Ventas'].mean().round(0).sort_values(ascending=False)
+    resumen_diario_string = ventas_por_dia.to_string()
 
     prompt = f"""
     # ROL Y PERSONALIDAD
@@ -58,20 +64,29 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     Tu tono debe ser colaborativo, cálido y alentador. Dirígete al usuario por su nombre: '{nombre_usuario}'.
 
     # MISIÓN
-    Analiza los siguientes **totales de ventas mensuales** para {nombre_usuario}. Ya he procesado los datos diarios por ti.
+    He pre-procesado los datos para ti en dos resúmenes. Tu misión es analizar cada uno para su propósito específico.
+
+    **Resumen 1: Totales Mensuales (para el pronóstico y la tendencia)**
     ---
     {datos_mensuales_string}
     ---
 
-    Tu misión es realizar un análisis profundo basado en estos totales mensuales y presentar los resultados usando exactamente los siguientes títulos en formato Markdown:
+    **Resumen 2: Promedio de Ventas por Día de la Semana (para los insights)**
+    ---
+    {resumen_diario_string}
+    ---
 
-    **1. Análisis de Tendencia General:** Describe la tendencia que observas en estos totales mensuales.
-    **2. Pronóstico de Ventas:** Basado en la tendencia de los totales mensuales, genera la tabla de pronóstico para los próximos 3 meses. Los montos deben ser coherentes con la escala de los datos históricos. IMPORTANTE: Todos los montos deben ser números enteros y usar un punto (.) como separador de miles (ej: 2.719.847).
-    **3. Insights Accionables (El Consejo del Socio):** Encabeza esta sección con '### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!'. Proporciona un insight accionable basado en la tendencia general que has observado.
+    Ahora, presenta los resultados usando **exactamente** los siguientes títulos en formato Markdown:
+
+    **1. Análisis de Tendencia General:** Basado **únicamente en el Resumen 1**, describe la tendencia que observas en los totales mensuales.
+
+    **2. Pronóstico de Ventas:** Basado **únicamente en el Resumen 1**, genera la tabla de pronóstico para los próximos 3 meses. Los montos deben ser coherentes con la escala de los datos mensuales. IMPORTANTE: Todos los montos deben ser números enteros y usar un punto (.) como separador de miles (ej: 2.719.847).
+
+    **3. Insights Accionables (El Consejo del Socio):** Encabeza esta sección con '### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!'. Basado **únicamente en el Resumen 2**, proporciona un insight accionable sobre los patrones de venta diarios o semanales.
 
     ---
     # FORMATO DE SALIDA OBLIGATORIO
-    Añade el bloque JSON. IMPORTANTE: Los valores de "Venta" deben ser enteros y SIN separador de miles en el JSON (ej: 2719847).
+    Añade el bloque JSON. Los valores de "Venta" deben ser enteros y SIN separador de miles en el JSON (ej: 2719847).
     ```json
     {{
       "pronostico_json": [
@@ -88,14 +103,16 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
         response = model.generate_content(prompt)
         texto_respuesta = response.text
 
-        texto_analisis = texto_respuesta.split("```json")[0].strip()
+        # ... (El resto del código para mostrar el texto y el gráfico se mantiene igual) ...
+        # ... (No necesita cambios ya que la lógica de parseo es la misma) ...
 
+        texto_analisis = texto_respuesta.split("```json")[0].strip()
         separador_insights = f"### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!"
         partes_del_analisis = texto_analisis.split(separador_insights, 1)
 
         if len(partes_del_analisis) == 2:
             parte_general, parte_insights = partes_del_analisis
-            st.subheader("📊 Análisis General de tus Ventas")
+            st.subheader("📊 Análisis General y Pronóstico")
             st.markdown(parte_general)
             st.subheader(f"💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!")
             st.markdown(parte_insights)
@@ -112,7 +129,6 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
             df_pronostico["Fecha"] = pd.to_datetime(df_pronostico["Mes"])
             df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
             
-            # Reutilizamos el DataFrame mensual que ya calculamos
             df_historico_mensual_para_grafico = df_ventas.set_index("Fecha").resample("M").sum().reset_index()
             df_historico_mensual_para_grafico = df_historico_mensual_para_grafico.rename(columns={"Ventas": "Ventas Históricas"})
 
@@ -185,4 +201,6 @@ if archivo_cargado is not None:
         st.error(
             f"Error al procesar el archivo: {e}. Asegúrate de que tenga las columnas 'Fecha' y 'Ventas'."
         )
+
+
 
