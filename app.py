@@ -45,13 +45,38 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     
     df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"], dayfirst=True)
     
-    # --- 💡 CAMBIO LÓGICO 1: Pre-procesamiento de AMBOS resúmenes ---
+    # --- 💡 CAMBIO LÓGICO: Pre-procesamiento de TRES resúmenes ---
     
-    # RESUMEN 1: Totales mensuales (para el pronóstico)
+    # RESUMEN 1: Totales mensuales (para el pronóstico y la tendencia general)
     df_historico_mensual = df_ventas.set_index("Fecha").resample("M").sum().reset_index()
     df_historico_mensual["Fecha"] = df_historico_mensual["Fecha"].dt.strftime('%Y-%m')
     df_historico_mensual = df_historico_mensual.rename(columns={"Ventas": "Total_Ventas_Mensual"})
     datos_mensuales_string = df_historico_mensual.to_string(index=False)
+
+    # RESUMEN 2: Patrones por día de la semana (para los insights de patrones)
+    df_ventas['Dia_Semana_en'] = df_ventas['Fecha'].dt.day_name()
+    dias_map = {
+        'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+        'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
+    }
+    df_ventas['Dia_Semana'] = df_ventas['Dia_Semana_en'].map(dias_map)
+    dias_ordenados = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    ventas_por_dia = df_ventas.groupby('Dia_Semana')['Ventas'].mean().round(0).reindex(dias_ordenados)
+    resumen_diario_string = ventas_por_dia.to_string()
+
+    # RESUMEN 3: Detección de Anomalías (para el análisis de eventos)
+    media_ventas = df_ventas['Ventas'].mean()
+    std_ventas = df_ventas['Ventas'].std()
+    # Definimos umbral de anomalía como ventas 1.5 desviaciones estándar sobre la media
+    umbral_anomalia = media_ventas + 1.5 * std_ventas
+    picos_venta = df_ventas[df_ventas['Ventas'] > umbral_anomalia].nlargest(5, 'Ventas')
+    
+    if not picos_venta.empty:
+        anomalias_string = "Se detectaron los siguientes días con picos de venta notables:\n"
+        picos_venta['Fecha_str'] = picos_venta['Fecha'].dt.strftime('%d de %B')
+        anomalias_string += picos_venta[['Fecha_str', 'Ventas']].to_string(index=False, header=False)
+    else:
+        anomalias_string = "No se detectaron picos de venta estadísticamente significativos en este periodo."
 
     # --- 💡 CAMBIO CRÍTICO: Traducción manual de los días de la semana ---
     # Obtenemos el nombre del día en inglés (que siempre funciona)
@@ -73,27 +98,33 @@ def generar_pronostico(df_ventas, nombre_usuario="Emprendedor"):
     Tu tono debe ser colaborativo, cálido y alentador. Dirígete al usuario por su nombre: '{nombre_usuario}'.
 
     # MISIÓN
-    He pre-procesado los datos para ti en dos resúmenes. Tu misión es analizar cada uno para su propósito específico.
+    He pre-procesado los datos para ti en tres resúmenes. Tu misión es analizar cada uno para su propósito específico.
 
     **Resumen 1: Totales Mensuales (para el pronóstico y la tendencia)**
     ---
     {datos_mensuales_string}
     ---
 
-    **Resumen 2: Promedio de Ventas por Día de la Semana (para los insights)**
+    **Resumen 2: Promedio de Ventas por Día de la Semana (para los patrones)**
     ---
     {resumen_diario_string}
+    ---
+
+    **Resumen 3: Días con Picos de Venta Notables (para las anomalías)**
+    ---
+    {anomalias_string}
     ---
 
     Ahora, presenta los resultados usando **exactamente** los siguientes títulos en formato Markdown:
 
     **1. Análisis de Tendencia General:** Basado **únicamente en el Resumen 1**, describe la tendencia que observas en los totales mensuales.
 
-    **2. Pronóstico de Ventas:** Basado **únicamente en el Resumen 1**, genera la tabla de pronóstico para los próximos 3 meses. Los montos deben ser coherentes con la escala de los datos mensuales. IMPORTANTE: Todos los montos deben ser números enteros y usar un punto (.) como separador de miles (ej: 2.719.847).
+    **2. Análisis de Anomalías:** Basado **únicamente en el Resumen 3**, comenta sobre los días con picos de venta. Si se detectaron, sugiere qué pudo haberlos causado (ej: eventos, promociones exitosas, fechas especiales).
 
-    **3. Insights Accionables (El Consejo del Socio):** Encabeza esta sección con '### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!'. Basado **únicamente en el Resumen 2**, proporciona un insight accionable sobre los patrones de venta diarios o semanales.
+    **3. Pronóstico de Ventas:** Basado **únicamente en el Resumen 1**, genera la tabla de pronóstico para los próximos 3 meses. Los montos deben ser coherentes con la escala de los datos mensuales. IMPORTANTE: Todos los montos deben ser números enteros y usar un punto (.) como separador de miles (ej: 2.719.847).
 
-    ---
+    **4. Insights Accionables (El Consejo del Socio):** Encabeza esta sección con '### 💡 ¡Hemos Encontrado Oportunidades para Ti, {nombre_usuario}!'. Basado **en el Resumen 2 y 3**, proporciona un insight accionable. No te limites a la recomendación general; ofrécele al usuario **2 o 3 ideas concretas de campañas de marketing o acciones de bajo a mediano costo**. Por ejemplo: "Viendo que los sábados son tu día más fuerte, podrías implementar una campaña de 'Sábado Gigante' en Instagram con un descuento flash que solo dure 3 horas para generar urgencia y atraer más clientes ese día."
+
     # FORMATO DE SALIDA OBLIGATORIO
     Añade el bloque JSON. Los valores de "Venta" deben ser enteros y SIN separador de miles en el JSON (ej: 2719847).
     ```json
