@@ -224,7 +224,7 @@ except Exception:
     )
     
 #--------------------------------------------------
-I#NTERFAZ DE USUARIO
+#NTERFAZ DE USUARIO
 #--------------------------------------------------
 col1, col2 = st.columns([1, 4])
 
