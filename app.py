@@ -222,7 +222,7 @@ except Exception:
         "⚠️ No fue posible contactar la IA. "
         "Se muestra el pronóstico base estadístico."
     )
-    st.dataframe(df_baseline)
+    
 #--------------------------------------------------
 I#NTERFAZ DE USUARIO
 #--------------------------------------------------
