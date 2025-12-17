@@ -82,8 +82,7 @@ def llamar_a_gemini(prompt):
 # --------------------------------------------------
 
 def generar_pronostico(df_ventas, nombre_usuario):
-    # Baseline siempre disponible (fallback seguro)
-    df_baseline = calcular_pronostico_baseline(df_ventas)
+    
 
 
     st.info(f"📊 Analizando datos para {nombre_usuario}...")
@@ -181,6 +180,8 @@ Incluye un bloque JSON:
   ]
 }}
 """
+# Baseline siempre disponible (fallback seguro)
+    df_baseline = calcular_pronostico_baseline(df_ventas)
 try:
     texto_respuesta = llamar_a_gemini(prompt)
 
