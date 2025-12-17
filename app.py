@@ -239,7 +239,7 @@ nombre_usuario = st.text_input("Nombre del negocio:", "Emprendedor")
 
 archivo = st.file_uploader("Sube tu archivo CSV", type=["csv"])
 
-df = None  # 👈 inicializamos por seguridad
+df = None
 
 if archivo:
     df = pd.read_csv(archivo, delimiter=";", encoding="utf-8-sig")
@@ -247,13 +247,13 @@ if archivo:
     if df.shape[1] == 1:
         archivo.seek(0)
         df = pd.read_csv(archivo, delimiter=",", encoding="utf-8-sig")
-if df is not None:
+
+    # 👇 TODO lo que toca df va aquí
+    df.columns = df.columns.str.strip().str.title()
+
     st.success("Archivo cargado correctamente")
     st.dataframe(df.head())
 
-
-df.columns = df.columns.str.strip().str.title()
-st.dataframe(df.head())
 
 if "ejecutado" not in st.session_state:
     st.session_state.ejecutado = False
