@@ -1,263 +1,198 @@
-# ==================================================
-# SavIA - MVP Pronóstico de Ventas con IA + Baseline
-# ==================================================
-
+# --------------------------------------------------
+# IMPORTS
+# --------------------------------------------------
 import streamlit as st
 import pandas as pd
-import google.generativeai as genai
-import re
-import json
 import altair as alt
-import numpy as np
+import json
+import re
+import time
+from datetime import timedelta
+
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import StandardScaler
+
+# Nueva librería Gemini (OFICIAL)
+from google import genai
+from google.genai.types import GenerateContentConfig
+
 
 # --------------------------------------------------
-# CONFIGURACIÓN DE LA PÁGINA
+# CONFIG STREAMLIT
 # --------------------------------------------------
-
 st.set_page_config(
-    page_title="SavIA - Pronóstico de Ventas",
-    page_icon="Logo savIA.png"
+    page_title="SavIA - Análisis Inteligente para PYMEs",
+    page_icon="📊",
+    layout="centered"
 )
 
 # --------------------------------------------------
-# CONFIGURACIÓN SEGURA API KEY
+# CONFIG IA
 # --------------------------------------------------
+USE_IA = True
+IA_TIMEOUT_SECONDS = 20  # ⏱️ control duro
 
-if "GOOGLE_API_KEY" not in st.secrets:
-    st.error("❌ API Key de Google no configurada en st.secrets")
-    st.stop()
+try:
+    client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
+except Exception as e:
+    USE_IA = False
+    st.warning("⚠️ IA no configurada. Se usará solo el modelo base.")
 
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # --------------------------------------------------
-# FUNCIÓN BASELINE (REGRESIÓN LINEAL)
+# FUNCIONES BASELINE (MODELO LOCAL)
 # --------------------------------------------------
-
-def calcular_pronostico_baseline(df_ventas, meses_a_predecir=3):
-    df_mensual = (
-        df_ventas
-        .set_index("Fecha")
-        .resample("M")
+def generar_baseline(df):
+    df_m = (
+        df.set_index("Fecha")
+        .resample("ME")
         .sum()
         .reset_index()
     )
 
-    df_mensual["t"] = np.arange(len(df_mensual))
+    df_m["t"] = range(len(df_m))
+    X = df_m[["t"]]
+    y = df_m["Ventas"]
 
-    X = df_mensual[["t"]]
-    y = df_mensual["Ventas"]
+    model = LinearRegression()
+    model.fit(X, y)
 
-    modelo = LinearRegression()
-    modelo.fit(X, y)
+    t_futuro = [[len(df_m) + i] for i in range(1, 4)]
+    pred = model.predict(t_futuro).round(0).astype(int)
 
-    futuros_t = np.arange(len(df_mensual), len(df_mensual) + meses_a_predecir)
-    predicciones = modelo.predict(futuros_t.reshape(-1, 1))
-
-    fechas_futuras = pd.date_range(
-        start=df_mensual["Fecha"].max() + pd.offsets.MonthEnd(1),
-        periods=meses_a_predecir,
-        freq="M"
+    fechas = pd.date_range(
+        start=df_m["Fecha"].max() + pd.offsets.MonthEnd(1),
+        periods=3,
+        freq="ME"
     )
 
-    df_pronostico = pd.DataFrame({
-        "Mes": fechas_futuras.strftime("%Y-%m"),
-        "Pronostico_Baseline": predicciones.round(0).astype(int)
+    return pd.DataFrame({
+        "Fecha": fechas,
+        "Pronóstico": pred
     })
 
-    return df_pronostico
 
 # --------------------------------------------------
-# LLAMADA A GEMINI CON CACHE (CONTROL DE CUOTA)
+# IA CON TIMEOUT
 # --------------------------------------------------
+def llamar_ia_con_timeout(prompt):
+    start = time.time()
 
-@st.cache_data(show_spinner=False)
-def llamar_a_gemini(prompt):
-    model = genai.GenerativeModel("gemini-2.0-flash")
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-1.5-flash",
+        contents=prompt,
+        config=GenerateContentConfig(
+            temperature=0.4,
+            max_output_tokens=800
+        )
+    )
+
+    if time.time() - start > IA_TIMEOUT_SECONDS:
+        raise TimeoutError("IA excedió el tiempo máximo")
+
     return response.text
+
 
 # --------------------------------------------------
 # FUNCIÓN PRINCIPAL
 # --------------------------------------------------
+def analizar_datos(df, nombre):
+    st.info(f"📊 Analizando datos para {nombre}...")
 
-def generar_pronostico(df_ventas, nombre_usuario):
-    
+    df["Fecha"] = pd.to_datetime(df["Fecha"], dayfirst=True)
 
-
-    st.info(f"📊 Analizando datos para {nombre_usuario}...")
-
-    df_ventas["Fecha"] = pd.to_datetime(df_ventas["Fecha"], dayfirst=True)
-
-    # ------------------------
-    # RESUMEN MENSUAL
-    # ------------------------
-
-    df_mensual = (
-        df_ventas
-        .set_index("Fecha")
-        .resample("M")
+    # ---------------- HISTÓRICO
+    df_hist = (
+        df.set_index("Fecha")
+        .resample("ME")
         .sum()
         .reset_index()
     )
 
-    df_mensual["Fecha"] = df_mensual["Fecha"].dt.strftime("%Y-%m")
-    df_mensual = df_mensual.rename(columns={"Ventas": "Total_Ventas_Mensual"})
-    datos_mensuales_string = df_mensual.to_string(index=False)
+    # ---------------- BASELINE
+    df_baseline = generar_baseline(df)
 
-    # ------------------------
-    # BASELINE
-    # ------------------------
+    # ---------------- IA (opcional)
+    analisis_ia = None
 
-    df_baseline = calcular_pronostico_baseline(df_ventas)
-    baseline_string = df_baseline.to_string(index=False)
+    if USE_IA:
+        prompt = f"""
+Eres SavIA, un analista experto para pymes.
 
-    # ------------------------
-    # PATRONES POR DÍA
-    # ------------------------
-
-    df_ventas["Dia_Semana_en"] = df_ventas["Fecha"].dt.day_name()
-    dias_map = {
-        "Monday": "Lunes", "Tuesday": "Martes", "Wednesday": "Miércoles",
-        "Thursday": "Jueves", "Friday": "Viernes",
-        "Saturday": "Sábado", "Sunday": "Domingo"
-    }
-
-    df_ventas["Dia_Semana"] = df_ventas["Dia_Semana_en"].map(dias_map)
-    ventas_por_dia = df_ventas.groupby("Dia_Semana")["Ventas"].mean().round(0)
-    resumen_diario_string = ventas_por_dia.to_string()
-
-    # ------------------------
-    # ANOMALÍAS
-    # ------------------------
-
-    media = df_ventas["Ventas"].mean()
-    std = df_ventas["Ventas"].std()
-    umbral = media + 1.5 * std
-
-    picos = df_ventas[df_ventas["Ventas"] > umbral]
-
-    if not picos.empty:
-        picos["Fecha_str"] = picos["Fecha"].dt.strftime("%d-%m-%Y")
-        anomalias_string = picos[["Fecha_str", "Ventas"]].to_string(index=False)
-    else:
-        anomalias_string = "No se detectaron picos relevantes."
-
-    # ------------------------
-    # PROMPT
-    # ------------------------
-
-    prompt = f"""
-Eres SavIA, socio estratégico de una PyME.
-Habla claro, cercano y profesional.
-Dirígete al usuario como {nombre_usuario}.
-
-RESUMEN 1: Ventas Mensuales Históricas
-{datos_mensuales_string}
-
-RESUMEN 1B: Pronóstico Base Estadístico
-{baseline_string}
-
-RESUMEN 2: Promedio de Ventas por Día
-{resumen_diario_string}
-
-RESUMEN 3: Anomalías
-{anomalias_string}
+Datos mensuales:
+{df_hist[['Fecha','Ventas']].to_string(index=False)}
 
 Entrega:
-1. Análisis de tendencia
-2. Análisis de anomalías
-3. Pronóstico coherente con el baseline
-4. 2–3 insights accionables
-
-Incluye un bloque JSON:
-```json
-{{
-  "pronostico_json": [
-    {{"Mes": "2025-10", "Venta": 2800000}},
-    {{"Mes": "2025-11", "Venta": 2900000}},
-    {{"Mes": "2025-12", "Venta": 3000000}}
-  ]
-}}
+1. Tendencia general
+2. Riesgos
+3. Oportunidades
 """
-# Baseline siempre disponible (fallback seguro)
-    df_baseline = calcular_pronostico_baseline(df_ventas)
-try:
-    texto_respuesta = llamar_a_gemini(prompt)
 
-    texto_analisis = texto_respuesta.split("```json")[0]
-    st.markdown(texto_analisis)
+        try:
+            analisis_ia = llamar_ia_con_timeout(prompt)
+        except Exception:
+            analisis_ia = None
 
-    match = re.search(r"```json\n({.*?})\n```", texto_respuesta, re.DOTALL)
+    # ---------------- UI
+    st.subheader("📈 Ventas históricas")
+    st.dataframe(df_hist)
 
-    if match:
-        datos = json.loads(match.group(1))
-        df_pronostico = pd.DataFrame(datos["pronostico_json"])
-        df_pronostico["Fecha"] = pd.to_datetime(df_pronostico["Mes"])
-        df_pronostico = df_pronostico.rename(columns={"Venta": "Pronóstico"})
+    st.subheader("🔮 Pronóstico (Baseline)")
+    st.dataframe(df_baseline)
 
-        df_hist = (
-            df_ventas
-            .set_index("Fecha")
-            .resample("M")
-            .sum()
-            .reset_index()
-            .rename(columns={"Ventas": "Ventas Históricas"})
-        )
+    if analisis_ia:
+        st.subheader("🤖 Análisis SavIA (IA)")
+        st.markdown(analisis_ia)
+    else:
+        st.warning("⚠️ IA no disponible. Mostrando solo pronóstico base.")
 
-        df_final = pd.merge(df_hist, df_pronostico, on="Fecha", how="outer")
-        df_plot = df_final.melt("Fecha", var_name="Tipo", value_name="Monto")
+    # ---------------- GRÁFICO
+    df_plot = pd.concat([
+        df_hist.rename(columns={"Ventas": "Monto"}).assign(Tipo="Histórico"),
+        df_baseline.rename(columns={"Pronóstico": "Monto"}).assign(Tipo="Pronóstico")
+    ])
 
-        chart = alt.Chart(df_plot).mark_line(point=True).encode(
-            x="Fecha:T",
-            y="Monto:Q",
-            color="Tipo:N",
-            tooltip=["Fecha:T", "Monto:Q", "Tipo:N"]
-        )
+    chart = alt.Chart(df_plot).mark_line(point=True).encode(
+        x="Fecha:T",
+        y="Monto:Q",
+        color="Tipo:N",
+        tooltip=["Fecha:T", "Monto:Q", "Tipo:N"]
+    ).interactive()
 
-        st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, use_container_width=True)
 
-except Exception:
-    st.warning(
-        "⚠️ No fue posible contactar la IA. "
-        "Se muestra el pronóstico base estadístico."
-    )
-    
-#--------------------------------------------------
-#NTERFAZ DE USUARIO
-#--------------------------------------------------
-col1, col2 = st.columns([1, 4])
 
-with col1:
-    st.image("Logo savIA.png", width=100)
+# --------------------------------------------------
+# INTERFAZ
+# --------------------------------------------------
+st.title("SavIA")
+st.markdown("### Tu socio inteligente en análisis de datos para PYMEs")
 
-with col2:
-    st.title("SavIA")
-st.markdown("### Tu socio de análisis de datos")
+nombre = st.text_input("Nombre o negocio:", "Marcos")
 
-nombre_usuario = st.text_input("Nombre del negocio:", "Emprendedor")
-
-archivo = st.file_uploader("Sube tu archivo CSV", type=["csv"])
-
-df = None
+archivo = st.file_uploader(
+    "Sube tu archivo CSV (Fecha, Ventas)",
+    type=["csv"]
+)
 
 if archivo:
-    df = pd.read_csv(archivo, delimiter=";", encoding="utf-8-sig")
+    try:
+        df = pd.read_csv(archivo, delimiter=";", encoding="utf-8-sig")
+        if df.shape[1] == 1:
+            archivo.seek(0)
+            df = pd.read_csv(archivo, delimiter=",", encoding="utf-8-sig")
 
-    if df.shape[1] == 1:
-        archivo.seek(0)
-        df = pd.read_csv(archivo, delimiter=",", encoding="utf-8-sig")
+        df.columns = df.columns.str.strip().str.title()
 
-    # 👇 TODO lo que toca df va aquí
-    df.columns = df.columns.str.strip().str.title()
+        if "Fecha" not in df.columns or "Ventas" not in df.columns:
+            st.error("El CSV debe tener columnas 'Fecha' y 'Ventas'")
+        else:
+            st.success("Archivo cargado correctamente")
+            st.dataframe(df.head())
 
-    st.success("Archivo cargado correctamente")
-    st.dataframe(df.head())
+            if st.button("✨ Generar análisis"):
+                analizar_datos(df, nombre)
 
+    except Exception as e:
+        st.error(f"Error procesando archivo: {e}")
 
-if "ejecutado" not in st.session_state:
-    st.session_state.ejecutado = False
-
-if st.button("✨ Generar Pronóstico", disabled=st.session_state.ejecutado):
-    st.session_state.ejecutado = True
-    generar_pronostico(df, nombre_usuario)
